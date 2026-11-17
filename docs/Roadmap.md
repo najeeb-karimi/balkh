@@ -1,8 +1,9 @@
 # 🏛️ Balkh Development Roadmap
 
-1. **Fix CLI Argument Indexing & Add Automated Tests (`pytest`)**
-   * Update `sys.argv` references in `balkh/cli.py` to `sys.argv[1]` so file paths and flags (`--py`, `--help`) parse cleanly.
-   * Create a `tests/` folder using `pytest` to verify Dari keywords, Pashto keywords, mixed code, Persian/Pashto digits (`۰-۹`), and string literal preservation.
+1. **Fix CLI Argument Indexing & Add Automated Tests (`pytest`) — Complete**
+   * Parse file paths and flags (`--py`, `--help`) with `argparse`, supporting flags before or after the filename and reporting invalid arguments.
+   * Add a `tests/` suite using `pytest` for Dari keywords, Pashto keywords, mixed code, native digits, string literal preservation, and CLI behavior.
+   * Preserve native digits inside strings and comments while converting numeric literals in code.
 
 2. **Add an Interactive REPL Shell (`balkh` with no arguments)**
    * When a user runs `balkh` without a filename, launch an interactive terminal prompt (`بلخ >>> `) that transpiles and evaluates single lines or multi-line indented blocks live.

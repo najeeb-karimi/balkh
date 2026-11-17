@@ -6,7 +6,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 
 ## ✨ Features
 - **Bilingual Syntax:** Write in Dari (`اگر`, `تابع`, `چاپ`), Pashto (`که`, `فنکشن`, `چاپول`), or mix both in the same file.
-- **Native Numerals:** Automatically converts `۱۲۳` to `123`.
+- **Native Numerals:** Automatically converts numeric literals such as `۱۲۳` to `123`, preserving text inside strings and comments.
 - **Full Python Ecosystem:** Import and use any standard or third-party Python library (`random`, `math`, `json`, `requests`, etc.).
 - **Friendly Error Messages:** Helpful, culturally flavored error hints when you miss a bracket.
 
@@ -28,6 +28,15 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
    ```bash
    balkh examples/salam.blk --py
    ```
+
+## Running Tests
+
+Install the test dependencies and run the suite:
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest
+```
 
 ## 🤝 Contributing
 Want to add better Pashto or Dari aliases, translate standard library wrappers (`ریاضی.py`), or add funny error messages? Pull requests are warmly welcomed!
