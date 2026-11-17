@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "balkh"
+version = "0.1.0"
+description = "A bilingual Dari & Pashto programming language transpiled to Python."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+keywords = ["afghanistan", "dari", "pashto", "persian", "programming-language", "transpiler"]
+
+[project.scripts]
+balkh = "balkh.cli:main"
