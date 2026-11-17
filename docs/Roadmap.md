@@ -10,9 +10,11 @@
    * Keep variables, functions, and imports between commands. Display expression results and recover from errors or interrupted input.
    * Finish indented blocks with an empty line, cancel input with Ctrl+C, and exit with `exit()`, `quit()`, or EOF.
 
-3. **Build Bidirectional Translation (`--to-blk` and `--to-py`)**
-   * Expand the `--py` flag so users can save transpiled output directly to a `.py` file (`balkh app.blk --to-py app.py`).
-   * Add a reverse translator (`balkh app.py --to-blk --lang dari|pashto`) that converts standard English Python scripts into Dari or Pashto Balkh code.
+3. **Build Bidirectional Translation (`--to-blk` and `--to-py`) — Complete**
+   * Save transpiled output directly to a `.py` file (`balkh app.blk --to-py app.py`), retaining `--py` for inspection.
+   * Translate Python into Dari or Pashto (`balkh app.py --to-blk --lang dari|pashto`), optionally saving it with `--to-blk app.blk`. Default to Dari.
+   * Share token-based translation between the CLI and REPL, preserving formatting, strings, and comments. Use explicit preferred aliases for each language while retaining all existing forward aliases.
+   * Validate exports without executing programs, reject conflicting flags and input/output collisions, and test both languages and round trips.
 
 4. **Create Localized Standard Library Wrappers**
    * Build optional helper modules inside `balkh/stdlib/` (such as `ریاضی` for `math`, `تصادفی` for `random`, and `زمان` for `datetime`) so beginners can write complete programs without switching keyboards to English.

@@ -1,52 +1,14 @@
 import argparse
 import code
-import sys
 import os
+from pathlib import Path
+import re
+import sys
 import tokenize
-from io import BytesIO
+
 from balkh import __version__
-from balkh.keywords import KEYWORDS
+from balkh.translator import normalize_digits, reverse_transpile, transpile
 
-def normalize_digits(code: str) -> str:
-    """Normalize code digits while preserving string literals and comments."""
-    persian_digits = "۰۱۲۳۴۵۶۷۸۹"
-    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
-    english_digits = "0123456789"
-    table = str.maketrans(persian_digits + arabic_digits, english_digits * 2)
-    line_offsets = [0]
-    for line in code.split("\n"):
-        line_offsets.append(line_offsets[-1] + len(line) + 1)
-
-    preserved_types = {tokenize.STRING, tokenize.COMMENT}
-    # Python 3.12+ tokenizes f-string text separately from its expressions.
-    if hasattr(tokenize, "FSTRING_MIDDLE"):
-        preserved_types.add(tokenize.FSTRING_MIDDLE)
-
-    parts = []
-    cursor = 0
-    tokens = tokenize.tokenize(BytesIO(code.encode("utf-8")).readline)
-    for tok in tokens:
-        if tok.type in preserved_types:
-            start = line_offsets[tok.start[0] - 1] + tok.start[1]
-            end = line_offsets[tok.end[0] - 1] + tok.end[1]
-            parts.append(code[cursor:start].translate(table))
-            parts.append(code[start:end])
-            cursor = end
-    parts.append(code[cursor:].translate(table))
-    return "".join(parts)
-
-def transpile(source_code: str) -> str:
-    normalized = normalize_digits(source_code)
-    result_tokens = []
-    tokens = tokenize.tokenize(BytesIO(normalized.encode("utf-8")).readline)
-
-    for tok in tokens:
-        if tok.type == tokenize.NAME and tok.string in KEYWORDS:
-            result_tokens.append((tok.type, KEYWORDS[tok.string]))
-        else:
-            result_tokens.append((tok.type, tok.string))
-
-    return tokenize.untokenize(result_tokens).decode("utf-8")
 
 class BalkhConsole(code.InteractiveConsole):
     """An interactive Python console accepting Balkh source code."""
@@ -82,14 +44,26 @@ def main(argv=None):
         prog="balkh",
         description=f"زبان برنامه‌نویسی بلخ (Balkh v{__version__})",
     )
-    parser.add_argument("file", nargs="?", help="فایل بلخ برای اجرا (.blk)")
-    parser.add_argument(
+    parser.add_argument("file", nargs="?", help="فایل برنامه (.blk یا .py)")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
         "--py", action="store_true", help="نمایش کد ترجمه شده پایتون"
     )
+    modes.add_argument("--to-py", metavar="OUTPUT", help="ذخیره کد پایتون در فایل")
+    modes.add_argument(
+        "--to-blk", nargs="?", const="", metavar="OUTPUT",
+        help="ترجمه پایتون به بلخ؛ نمایش کد یا ذخیره در فایل",
+    )
+    parser.add_argument(
+        "--lang", choices=("dari", "pashto"),
+        help="زبان ترجمه با --to-blk (پیش‌فرض: dari)",
+    )
     args = parser.parse_args(argv)
+    if args.lang is not None and args.to_blk is None:
+        parser.error("--lang requires --to-blk")
     if args.file is None:
-        if args.py:
-            parser.error("--py requires a .blk file")
+        if args.py or args.to_py is not None or args.to_blk is not None:
+            parser.error("translation flags require an input file")
         BalkhConsole().interact(
             banner=(
                 f"زبان برنامه‌نویسی بلخ (Balkh v{__version__})\n"
@@ -106,23 +80,73 @@ def main(argv=None):
         print(f"او برادر! فایل '{file_path}' پیدا نشد.")
         sys.exit(1)
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        balkh_code = f.read()
+    output_path = args.to_py if args.to_py is not None else args.to_blk or None
+    try:
+        if output_path is not None and (
+            Path(output_path).resolve() == Path(file_path).resolve()
+            or (os.path.exists(output_path) and os.path.samefile(file_path, output_path))
+        ):
+            parser.error("input and output must be different files")
+        if args.to_blk is not None:
+            # Respect Python encoding cookies and UTF-8 BOMs on Python input.
+            with tokenize.open(file_path) as f:
+                f.reconfigure(newline="")
+                source_code = f.read()
+        else:
+            with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
+                source_code = f.read()
+    except (OSError, UnicodeError, SyntaxError) as error:
+        parser.exit(1, f"خطای خواندن فایل '{file_path}': {error}\n")
 
     try:
-        python_code = transpile(balkh_code)
+        if args.to_blk is not None:
+            compile(source_code, file_path, "exec")
+            translated_code = reverse_transpile(source_code, args.lang or "dari")
+        else:
+            translated_code = transpile(source_code)
+            if args.to_py is not None:
+                compile(translated_code, file_path, "exec")
     except tokenize.TokenError as e:
         print(f"خطای نگارشی در توکن‌ها: {e}")
         print("قوس‌ها یا ناخنک‌ها را چک کو!")
         sys.exit(1)
+    except (SyntaxError, ValueError) as error:
+        parser.exit(1, f"خطای نگارشی ({type(error).__name__}): {error}\n")
+
+    if output_path is not None:
+        # Saved files are UTF-8, including when Python input declared another encoding.
+        lines = translated_code.split("\n")
+        for index in range(min(2, len(lines))):
+            cookie = re.match(
+                r"(^[ \t\f]*#.*?coding[:=][ \t]*)([-\w.]+)",
+                lines[index], flags=re.ASCII,
+            )
+            if cookie:
+                lines[index] = cookie[1] + "utf-8" + lines[index][cookie.end():]
+                break
+            if (
+                lines[index].strip(" \t\f\r")
+                and not lines[index].lstrip(" \t\f").startswith("#")
+            ):
+                break
+        try:
+            with open(output_path, "w", encoding="utf-8", newline="") as f:
+                f.write("\n".join(lines))
+        except (OSError, UnicodeError) as error:
+            parser.exit(1, f"خطای نوشتن فایل '{output_path}': {error}\n")
+        return
 
     if args.py:
-        print(python_code)
+        print(translated_code.replace("\r\n", "\n"))
+        return
+    if args.to_blk is not None:
+        # Let stdout apply platform newline conversion only once.
+        sys.stdout.write(translated_code.replace("\r\n", "\n"))
         return
 
     try:
         exec_globals = {"__name__": "__main__", "__file__": file_path}
-        exec(python_code, exec_globals)
+        exec(translated_code, exec_globals)
     except SyntaxError as e:
         print(f"او برادر! خطای نگارشی (SyntaxError) در خط {e.lineno}:")
         print(f"  {e.text.strip() if e.text else ''}")
