@@ -126,7 +126,7 @@ def test_unclosed_bracket_raises_token_error():
         transpile("چاپ(۱۲۳")
 
 
-@pytest.mark.parametrize("name", ["salam.blk", "bazi.blk"])
+@pytest.mark.parametrize("name", ["salam.blk", "bazi.blk", "stdlib.blk"])
 def test_examples_compile(name):
     path = Path(__file__).resolve().parents[1] / "examples" / name
     compile(transpile(path.read_text(encoding="utf-8")), str(path), "exec")

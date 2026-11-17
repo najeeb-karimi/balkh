@@ -301,3 +301,27 @@ def test_file_round_trip_preserves_line_endings_and_bom_input(tmp_path):
     assert balkh.read_bytes().decode("utf-8") == 'چاپول("hello ۱۲۳")\r\n'
     assert run_cli(balkh, "--to-py", python).returncode == 0
     assert python.read_bytes().decode("utf-8") == text
+
+
+def test_localized_stdlib_example_and_python_export(tmp_path):
+    source = PROJECT_ROOT / "examples" / "stdlib.blk"
+    result = run_cli(source)
+    expected = (
+        "جذر ۸۱: 9.0\nد ۸۱ مربع ریښه: 9.0\n"
+        "انتخاب: بلخ\nټاکنه: بلخ\n"
+        "فردا: 2024-02-29\nسبا: 2024-02-29\n"
+    )
+    assert result.returncode == 0
+    assert result.stdout == expected
+    assert result.stderr == ""
+    output = tmp_path / "stdlib.py"
+    exported = run_cli(source, "--to-py", output)
+    assert exported.returncode == 0
+    assert exported.stdout == exported.stderr == ""
+    python = subprocess.run(
+        [sys.executable, str(output)], capture_output=True, encoding="utf-8",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=10,
+    )
+    assert python.returncode == 0
+    assert python.stdout == expected
+    assert python.stderr == ""

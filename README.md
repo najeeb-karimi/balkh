@@ -11,6 +11,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Friendly Error Messages:** Helpful, culturally flavored error hints when you miss a bracket.
 - **Interactive Shell:** Run `balkh` without a filename to try expressions, keep variables, and write multi-line programs live.
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
+- **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
 
 ## 🚀 Quick Start
 
@@ -51,7 +52,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 
    End an indented block with an empty line. Variables, functions, and imports stay available throughout the session. Press Ctrl+C to cancel pending input. Exit with `exit()`, `quit()`, or EOF (Ctrl+Z then Enter on Windows; Ctrl+D on Linux/macOS).
 
-## Translating Files
+## 🔄 Translating Files
 
 Save a Balkh program as Python:
 
@@ -73,7 +74,29 @@ Translation preserves strings, comments, numeric spellings, and formatting; expo
 
 Saved files use UTF-8, with any encoding header updated to match. An explicitly named output file is replaced after translation succeeds; input and output must be different files. Neither export mode runs the source program.
 
-## Running Tests
+## 📚 Localized Standard Library
+
+Import optional helpers from `balkh.stdlib`:
+
+```python
+از balkh.stdlib وارد ریاضی, تصادفی, زمان
+چاپ(ریاضی.جذر(۸۱))
+چاپ(تصادفی.انتخاب(["بلخ", "کابل"]))
+چاپ(زمان.قالب(زمان.تاریخ(۲۰۲۴, ۲, ۲۸) + زمان.مدت(روز=۱)))
+```
+
+Pashto module names and functions are available too:
+
+```python
+له balkh.stdlib راوړل ریاضي, تصادفي, وخت
+چاپول(ریاضي.مربع_ریښه(۸۱))
+چاپول(تصادفي.ټاکنه(["بلخ", "کابل"]))
+چاپول(وخت.بڼه(وخت.نېټه(۲۰۲۴, ۲, ۲۸) + وخت.موده(ورځې=۱)))
+```
+
+Run `balkh examples/stdlib.blk` or see the [standard library reference](docs/Stdlib.md) for the complete alias tables and behavior. These helpers work in the REPL and exported Python with Balkh installed. Dates use Python's Gregorian calendar.
+
+## 🧪 Running Tests
 
 Install the test dependencies and run the suite:
 

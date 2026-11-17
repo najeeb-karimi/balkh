@@ -16,8 +16,10 @@
    * Share token-based translation between the CLI and REPL, preserving formatting, strings, and comments. Use explicit preferred aliases for each language while retaining all existing forward aliases.
    * Validate exports without executing programs, reject conflicting flags and input/output collisions, and test both languages and round trips.
 
-4. **Create Localized Standard Library Wrappers**
-   * Build optional helper modules inside `balkh/stdlib/` (such as `ریاضی` for `math`, `تصادفی` for `random`, and `زمان` for `datetime`) so beginners can write complete programs without switching keyboards to English.
+4. **Create Localized Standard Library Wrappers — Complete**
+   * Add optional modules inside `balkh/stdlib/`: `ریاضی` for `math`, `تصادفی` for `random`, and `زمان` for `datetime`, with Dari and Pashto operation names.
+   * Provide Pashto module paths (`ریاضي`, `تصادفي`, `وخت`), localized duration units, and date/time formatting and parsing helpers.
+   * Use regular package imports in programs, the REPL, and exported Python. Document the APIs in `docs/Stdlib.md` and add `examples/stdlib.blk` with tests for both languages.
 
 5. **Upgrade Error Handling & Tracebacks**
    * Intercept Python runtime exceptions (`NameError`, `TypeError`, `ZeroDivisionError`, `IndexError`) and translate both the error explanation and line numbers into friendly, helpful Dari and Pashto messages.
