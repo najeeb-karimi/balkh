@@ -21,8 +21,11 @@
    * Provide Pashto module paths (`ریاضي`, `تصادفي`, `وخت`), localized duration units, and date/time formatting and parsing helpers.
    * Use regular package imports in programs, the REPL, and exported Python. Document the APIs in `docs/Stdlib.md` and add `examples/stdlib.blk` with tests for both languages.
 
-5. **Upgrade Error Handling & Tracebacks**
-   * Intercept Python runtime exceptions (`NameError`, `TypeError`, `ZeroDivisionError`, `IndexError`) and translate both the error explanation and line numbers into friendly, helpful Dari and Pashto messages.
+5. **Upgrade Error Handling & Tracebacks — Complete**
+   * Add Dari and Pashto explanations and hints for `NameError`, `TypeError`, `ZeroDivisionError`, and `IndexError`, plus syntax/indentation/token errors and a fallback for other exceptions.
+   * Report native-digit line numbers and original source frames, retain Python details and exception chains, and track earlier REPL definitions correctly.
+   * Use `--lang dari|pashto` for diagnostics in files, the REPL, and export validation. Send diagnostics to standard error and return a failing status for uncaught file errors.
+   * Document behavior in `docs/Errors.md` and test both languages, nested calls, REPL recovery, custom messages, and exit statuses.
 
 6. **Build a VS Code Syntax Highlighting Extension**
    * Create a lightweight TextMate grammar extension (`.tmLanguage.json`) that highlights Dari/Pashto keywords, strings, numbers, and comments in `.blk` files inside VS Code.

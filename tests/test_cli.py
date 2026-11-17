@@ -80,8 +80,9 @@ def test_missing_file(tmp_path):
     path = tmp_path / "missing.blk"
     result = run_cli(path)
     assert result.returncode == 1
-    assert str(path) in result.stdout
-    assert "پیدا نشد" in result.stdout
+    assert result.stdout == ""
+    assert str(path) in result.stderr
+    assert "پیدا نشد" in result.stderr
 
 
 def test_unclosed_bracket(tmp_path):
@@ -89,7 +90,8 @@ def test_unclosed_bracket(tmp_path):
     path.write_text("چاپ(۱۲۳", encoding="utf-8")
     result = run_cli(path)
     assert result.returncode == 1
-    assert "خطای نگارشی" in result.stdout
+    assert result.stdout == ""
+    assert "خطای نگارشی" in result.stderr
     assert "Traceback" not in result.stderr
 
 
@@ -215,12 +217,11 @@ def test_translation_does_not_execute_source(tmp_path, flag):
     "args",
     [
         ["--to-py"], ["--to-py", "result.py"], ["--to-blk"],
-        ["--lang", "dari"], ["source.py", "--lang", "dari"],
+        ["--lang", "english"],
         ["source.py", "--to-blk", "--lang", "english"],
         ["source.blk", "--py", "--to-py", "result.py"],
         ["source.blk", "--py", "--to-blk"],
         ["source.blk", "--to-py", "result.py", "--to-blk"],
-        ["source.blk", "--to-py", "result.py", "--lang", "pashto"],
     ],
 )
 def test_invalid_translation_arguments(args):
@@ -325,3 +326,115 @@ def test_localized_stdlib_example_and_python_export(tmp_path):
     assert python.returncode == 0
     assert python.stdout == expected
     assert python.stderr == ""
+
+
+@pytest.mark.parametrize(
+    "source, exception_name, dari, pashto",
+    [("چاپ(ناشناخته)", "NameError", "این نام تعریف نشده", "دا نوم نه دی تعریف شوی"),
+     ('نتیجه = "بلخ" + ۱', "TypeError", "نوع مقدارها", "د ارزښتونو ډولونه"),
+     ("نتیجه = ۱ / ۰", "ZeroDivisionError", "تقسیم یا باقیمانده", "پر صفر وېشل"),
+     ("نتیجه = [۱][۳]", "IndexError", "این اندیس", "دا اندیس")],
+)
+@pytest.mark.parametrize("language", ["dari", "pashto"])
+def test_localized_file_runtime_errors(tmp_path, source, exception_name, dari, pashto, language):
+    path = tmp_path / "برنامه 12.blk"
+    path.write_text("\n" * 11 + source + "\n", encoding="utf-8")
+    result = run_cli(path, "--lang", language)
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert str(path) in result.stderr
+    assert exception_name in result.stderr
+    assert (dari if language == "dari" else pashto) in result.stderr
+    assert ("خط ۱۲" if language == "dari" else "کرښه ۱۲") in result.stderr
+    assert source in result.stderr
+    assert "cli.py" not in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_runtime_failure_preserves_program_stdout_and_stops_execution(tmp_path):
+    path = tmp_path / "failure.blk"
+    path.write_text('چاپ("پیش از خطا")\n۱ / ۰\nچاپ("نباید اجرا")\n', encoding="utf-8")
+    result = run_cli(path)
+    assert result.returncode == 1
+    assert result.stdout == "پیش از خطا\n"
+    assert "ZeroDivisionError" in result.stderr
+    assert "نباید اجرا" not in result.stdout
+
+
+def test_program_can_handle_its_own_errors(tmp_path):
+    path = tmp_path / "handled.blk"
+    path.write_text(
+        'تلاش:\n    ۱ / ۰\nبجز ZeroDivisionError:\n    چاپ("گرفته شد")\n',
+        encoding="utf-8",
+    )
+    result = run_cli(path, "--lang", "pashto")
+    assert result.returncode == 0
+    assert result.stdout == "گرفته شد\n"
+    assert result.stderr == ""
+
+
+def test_custom_runtime_error_keeps_original_message(tmp_path):
+    path = tmp_path / "custom.blk"
+    path.write_text('خطا_بده ValueError("پیام 123")\n', encoding="utf-8")
+    result = run_cli(path, "--lang", "pashto")
+    assert result.returncode == 1
+    assert "ValueError" in result.stderr
+    assert "پیام 123" in result.stderr
+    assert "پروګرام د یوې تېروتنې" in result.stderr
+
+
+def test_system_exit_status_is_preserved(tmp_path):
+    path = tmp_path / "exit.blk"
+    path.write_text("خطا_بده SystemExit(۷)\n", encoding="utf-8")
+    result = run_cli(path, "--lang", "pashto")
+    assert result.returncode == 7
+    assert result.stdout == result.stderr == ""
+
+
+@pytest.mark.parametrize("flag", ["--to-py", "--to-blk"])
+def test_translation_syntax_errors_use_selected_language(tmp_path, flag):
+    path = tmp_path / "broken.py"
+    path.write_text("if True\n", encoding="utf-8")
+    output = tmp_path / "output.txt"
+    output.write_text("keep this", encoding="utf-8")
+    result = run_cli(path, flag, output, "--lang", "pashto")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "د لیکنې تېروتنه" in result.stderr
+    assert "کرښه ۱" in result.stderr
+    assert "if True" in result.stderr
+    assert output.read_text(encoding="utf-8") == "keep this"
+
+
+def test_pashto_repl_diagnostics_and_recovery():
+    result = run_cli("--lang", "pashto", input_text='۱ / ۰\n[۱][۳]\nناشناخته\n"بلخ" + ۱\n۲ + ۳\n')
+    assert result.returncode == 0
+    assert "د بلخ پروګرامینګ ژبه" in result.stderr
+    assert result.stderr.count("د اجرا تېروتنه") == 4
+    assert "لارښوونه:" in result.stderr
+    assert "کرښه ۱" in result.stderr
+    assert "بلخ >>> 5\n" in result.stdout
+
+
+@pytest.mark.parametrize("flag_first", [False, True])
+def test_execution_accepts_language_option(program, flag_first):
+    args = ["--lang", "pashto", program] if flag_first else [program, "--lang", "pashto"]
+    result = run_cli(*args)
+    assert result.returncode == 0
+    assert result.stdout == "سلام ۱۲۳ 123\n"
+    assert result.stderr == ""
+
+
+def test_file_io_errors_use_pashto(tmp_path):
+    missing = run_cli(tmp_path / "missing.blk", "--lang", "pashto")
+    assert missing.returncode == 1
+    assert missing.stdout == ""
+    assert "ونه موندل شوه" in missing.stderr
+    directory = run_cli(tmp_path, "--lang", "pashto")
+    assert directory.returncode == 1
+    assert "د دوتنې د لوستلو تېروتنه" in directory.stderr
+    source = tmp_path / "source.blk"
+    source.write_text("چاپ(۱)\n", encoding="utf-8")
+    unwritable = run_cli(source, "--to-py", tmp_path, "--lang", "pashto")
+    assert unwritable.returncode == 1
+    assert "د دوتنې د لیکلو تېروتنه" in unwritable.stderr

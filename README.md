@@ -8,7 +8,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Bilingual Syntax:** Write in Dari (`اگر`, `تابع`, `چاپ`), Pashto (`که`, `فنکشن`, `چاپول`), or mix both in the same file.
 - **Native Numerals:** Automatically converts numeric literals such as `۱۲۳` to `123`, preserving text inside strings and comments.
 - **Full Python Ecosystem:** Import and use any standard or third-party Python library (`random`, `math`, `json`, `requests`, etc.).
-- **Friendly Error Messages:** Helpful, culturally flavored error hints when you miss a bracket.
+- **Friendly Error Messages:** Dari and Pashto explanations and hints, native-digit line numbers, and original Balkh source locations.
 - **Interactive Shell:** Run `balkh` without a filename to try expressions, keep variables, and write multi-line programs live.
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
@@ -68,7 +68,7 @@ balkh salam.py --to-blk salam-pashto.blk --lang pashto
 balkh salam-pashto.blk
 ```
 
-`--lang` defaults to `dari` and requires `--to-blk`. The translation modes (`--py`, `--to-py`, and `--to-blk`) are mutually exclusive. `--py` continues to display Python without saving it.
+`--lang` defaults to `dari` and selects the language for reverse translation and error messages. It also works when running files or starting the REPL. The translation modes (`--py`, `--to-py`, and `--to-blk`) are mutually exclusive. `--py` continues to display Python without saving it.
 
 Translation preserves strings, comments, numeric spellings, and formatting; exporting Balkh to Python converts native numeric literals to Python digits. Python keywords without a localized alias remain in English. Pashto output uses existing shared aliases where a separate Pashto spelling is not available yet.
 
@@ -95,6 +95,19 @@ Pashto module names and functions are available too:
 ```
 
 Run `balkh examples/stdlib.blk` or see the [standard library reference](docs/Stdlib.md) for the complete alias tables and behavior. These helpers work in the REPL and exported Python with Balkh installed. Dates use Python's Gregorian calendar.
+
+## 🩺 Errors and Tracebacks
+
+Choose Dari or Pashto diagnostics for files or the interactive shell:
+
+```bash
+balkh app.blk --lang pashto
+balkh --lang pashto
+```
+
+Common runtime errors include localized explanations and fix hints, with native-digit line numbers and the original source. The REPL remembers earlier function definitions when reporting errors. Python exception names and detailed messages remain available for debugging.
+
+Errors go to standard error, and uncaught file execution errors exit with status `1`. See the [error handling reference](docs/Errors.md) for examples, exception chains, and exit behavior.
 
 ## 🧪 Running Tests
 

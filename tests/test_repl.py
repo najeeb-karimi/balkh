@@ -122,3 +122,28 @@ def test_keyboard_interrupt_cancels_pending_input(monkeypatch, capsys):
     assert captured.out == "5\n"
     assert "value" not in console.locals
     assert prompts == ["بلخ >>> ", "بلخ ... ", "بلخ ... ", "بلخ >>> ", "بلخ >>> "]
+
+
+@pytest.mark.parametrize("language", ["dari", "pashto"])
+def test_traceback_retains_source_of_previously_defined_function(language, capsys):
+    console = BalkhConsole(language)
+    assert console.push("تابع تقسیم(الف, ب):") is True
+    assert console.push("    برگشت الف / ب") is True
+    assert console.push("") is False
+    for _ in range(10):
+        assert console.push("نتیجه = ۱") is False
+    assert console.push("تقسیم(۱, ۰)") is False
+    captured = capsys.readouterr()
+    assert "<بلخ:۱>" in captured.err
+    assert "<بلخ:۱۲>" in captured.err
+    assert ("خط ۲" if language == "dari" else "کرښه ۲") in captured.err
+    assert "برگشت الف / ب" in captured.err
+    assert "تقسیم(۱, ۰)" in captured.err
+    assert "cli.py" not in captured.err
+    assert console.push("۲ + ۳") is False
+    assert capsys.readouterr().out == "5\n"
+
+
+def test_invalid_console_language():
+    with pytest.raises(ValueError, match="dari.*pashto"):
+        BalkhConsole("english")
