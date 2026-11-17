@@ -1,4 +1,5 @@
 import argparse
+import code
 import sys
 import os
 import tokenize
@@ -47,6 +48,35 @@ def transpile(source_code: str) -> str:
 
     return tokenize.untokenize(result_tokens).decode("utf-8")
 
+class BalkhConsole(code.InteractiveConsole):
+    """An interactive Python console accepting Balkh source code."""
+
+    def __init__(self):
+        super().__init__(
+            locals={"__name__": "__main__", "__doc__": None}, filename="<balkh>"
+        )
+
+    def raw_input(self, prompt=""):
+        return input("بلخ ... " if self.buffer else "بلخ >>> ")
+
+    def runsource(self, source, filename="<balkh>", symbol="single"):
+        try:
+            python_code = transpile(source)
+        except tokenize.TokenError as error:
+            # Open brackets, explicit continuations, and triple-quoted strings
+            # need another input line before they can be transpiled.
+            if error.args[0].startswith(
+                ("EOF in multi-line", "unexpected EOF in multi-line")
+            ):
+                return True
+            self.write(f"خطای نگارشی در توکن‌ها: {error}\n")
+            return False
+        except (SyntaxError, OverflowError, ValueError):
+            self.showsyntaxerror(filename)
+            return False
+        return super().runsource(python_code, filename, symbol)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="balkh",
@@ -60,7 +90,14 @@ def main(argv=None):
     if args.file is None:
         if args.py:
             parser.error("--py requires a .blk file")
-        parser.print_help()
+        BalkhConsole().interact(
+            banner=(
+                f"زبان برنامه‌نویسی بلخ (Balkh v{__version__})\n"
+                "برای اجرای بلاک، یک خط خالی وارد کنید. "
+                "برای پایان exit() یا quit() را بنویسید."
+            ),
+            exitmsg="",
+        )
         return
 
     file_path = args.file

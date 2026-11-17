@@ -5,8 +5,10 @@
    * Add a `tests/` suite using `pytest` for Dari keywords, Pashto keywords, mixed code, native digits, string literal preservation, and CLI behavior.
    * Preserve native digits inside strings and comments while converting numeric literals in code.
 
-2. **Add an Interactive REPL Shell (`balkh` with no arguments)**
-   * When a user runs `balkh` without a filename, launch an interactive terminal prompt (`بلخ >>> `) that transpiles and evaluates single lines or multi-line indented blocks live.
+2. **Add an Interactive REPL Shell (`balkh` with no arguments) — Complete**
+   * Launch an interactive terminal prompt (`بلخ >>> `) that transpiles and evaluates single lines and multi-line indented blocks, using `بلخ ... ` for continued input.
+   * Keep variables, functions, and imports between commands. Display expression results and recover from errors or interrupted input.
+   * Finish indented blocks with an empty line, cancel input with Ctrl+C, and exit with `exit()`, `quit()`, or EOF.
 
 3. **Build Bidirectional Translation (`--to-blk` and `--to-py`)**
    * Expand the `--py` flag so users can save transpiled output directly to a `.py` file (`balkh app.blk --to-py app.py`).

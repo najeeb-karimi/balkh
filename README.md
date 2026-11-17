@@ -9,6 +9,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Native Numerals:** Automatically converts numeric literals such as `۱۲۳` to `123`, preserving text inside strings and comments.
 - **Full Python Ecosystem:** Import and use any standard or third-party Python library (`random`, `math`, `json`, `requests`, etc.).
 - **Friendly Error Messages:** Helpful, culturally flavored error hints when you miss a bracket.
+- **Interactive Shell:** Run `balkh` without a filename to try expressions, keep variables, and write multi-line programs live.
 
 ## 🚀 Quick Start
 
@@ -28,6 +29,26 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
    ```bash
    balkh examples/salam.blk --py
    ```
+
+4. **Start an Interactive Shell:**
+   ```bash
+   balkh
+   ```
+
+   ```text
+   بلخ >>> نام = "بلخ"
+   بلخ >>> چاپ("سلام", نام)
+   سلام بلخ
+   بلخ >>> ۲ + ۳
+   5
+   بلخ >>> تابع دوبرابر(مقدار):
+   بلخ ...     بېرته مقدار * ۲
+   بلخ ...
+   بلخ >>> دوبرابر(۴)
+   8
+   ```
+
+   End an indented block with an empty line. Variables, functions, and imports stay available throughout the session. Press Ctrl+C to cancel pending input. Exit with `exit()`, `quit()`, or EOF (Ctrl+Z then Enter on Windows; Ctrl+D on Linux/macOS).
 
 ## Running Tests
 

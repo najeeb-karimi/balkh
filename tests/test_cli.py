@@ -9,13 +9,14 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_cli(*args):
+def run_cli(*args, input_text=None):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-m", "balkh.cli", *map(str, args)],
         cwd=PROJECT_ROOT,
         env=env,
+        input=input_text,
         capture_output=True,
         encoding="utf-8",
         timeout=10,
@@ -29,7 +30,7 @@ def program(tmp_path):
     return path
 
 
-@pytest.mark.parametrize("args", [[], ["-h"], ["--help"], ["--py", "--help"]])
+@pytest.mark.parametrize("args", [["-h"], ["--help"], ["--py", "--help"]])
 def test_help(args):
     result = run_cli(*args)
     assert result.returncode == 0
@@ -88,4 +89,54 @@ def test_unclosed_bracket(tmp_path):
     result = run_cli(path)
     assert result.returncode == 1
     assert "خطای نگارشی" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_no_arguments_starts_repl():
+    result = run_cli(input_text="")
+    assert result.returncode == 0
+    assert result.stdout == "بلخ >>> "
+    assert "Balkh v" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_repl_executes_a_session():
+    result = run_cli(
+        input_text=(
+            "نتیجه = ۲\n"
+            "نتیجه + ۳\n"
+            "تابع دوبرابر(مقدار):\n"
+            "    بېرته مقدار * ۲\n"
+            "\n"
+            "چاپول(دوبرابر(نتیجه))\n"
+        )
+    )
+    assert result.returncode == 0
+    assert "بلخ >>> 5\n" in result.stdout
+    assert "بلخ ... " in result.stdout
+    assert "بلخ >>> 4\n" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("command", ["exit()", "quit()"])
+def test_repl_exit_commands(command):
+    result = run_cli(input_text=command + '\nچاپ("should not run")\n')
+    assert result.returncode == 0
+    assert "should not run" not in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_repl_recovers_from_errors():
+    result = run_cli(input_text='۱ / ۰\nاگر درست\nچاپ("هنوز اینجا")\n')
+    assert result.returncode == 0
+    assert "ZeroDivisionError" in result.stderr
+    assert "SyntaxError" in result.stderr
+    assert "هنوز اینجا" in result.stdout
+
+
+def test_repl_eof_discards_an_incomplete_block():
+    result = run_cli(input_text='اگر درست:\n    چاپ("should not run")\n')
+    assert result.returncode == 0
+    assert "بلخ ... " in result.stdout
+    assert "should not run" not in result.stdout
     assert "Traceback" not in result.stderr
