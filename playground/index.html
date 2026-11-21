@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111b2b">
+  <meta name="description" content="Write and run Balkh programs in Dari and Pashto, directly in your browser.">
+  <title>Balkh Playground · بلخ</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <a class="brand" href="./" aria-label="Balkh playground home"><span class="brand-mark" aria-hidden="true">ب</span><span>Balkh <span class="brand-native" lang="fa" dir="rtl">بلخ</span></span></a>
+      <div class="header-links"><span class="local-badge"><span aria-hidden="true"></span> Runs in your browser</span><a href="https://github.com/najeeb-karimi/balkh" id="repository-link" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a></div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow">THE BALKH PLAYGROUND</p><h1 id="page-title">Your language. <span>Your code.</span></h1><p class="intro-copy">Write in Dari, Pashto, or a little of both.<br> Run real Python programs, right here.</p></div>
+        <div class="intro-native" dir="rtl"><span lang="fa">به زبان خود بنویسید.</span><span lang="ps">په خپله ژبه کوډ ولیکئ.</span></div>
+      </section>
+
+      <div class="runtime-bar" role="status" aria-live="polite"><span class="runtime-dot loading" id="runtime-dot" aria-hidden="true"></span><span id="runtime-status">Loading the Python runtime…</span><button id="retry" class="text-button" hidden>Retry</button><span class="runtime-note" id="runtime-note">The first visit downloads Python. Your code stays in this browser.</span></div>
+
+      <section class="workspace" aria-label="Balkh coding workspace">
+        <section class="panel source-panel" aria-labelledby="source-title">
+          <div class="panel-heading"><div class="panel-title"><h2 id="source-title">Source</h2><span class="file-chip">.blk</span></div><label class="example-label" for="examples">Example<select id="examples" disabled><option value="">Loading examples…</option></select></label></div>
+          <div class="editor-toolbar"><span id="file-name">salam.blk</span><div><button class="quiet-button" id="direction" aria-pressed="true" title="Switch the source editor between RTL and LTR">RTL <span aria-hidden="true">⇄</span></button><button class="quiet-button" id="download" disabled title="Download your Balkh source">Download</button></div></div>
+          <div id="editor" class="source-editor" aria-label="Balkh source editor"><p class="editor-loading">Preparing the editor…</p></div>
+          <div class="editor-footer"><span id="save-status">Saved locally as you type</span><span>Dari + Pashto + Python</span></div>
+        </section>
+
+        <section class="panel result-panel" aria-labelledby="results-title">
+          <div class="panel-heading"><div class="panel-title"><h2 id="results-title">Results</h2></div><button id="clear-output" class="quiet-button">Clear</button></div>
+          <div class="result-tabs" role="tablist" aria-label="Result view"><button id="output-tab" role="tab" aria-selected="true" aria-controls="output-panel" tabindex="0">Output</button><button id="python-tab" role="tab" aria-selected="false" aria-controls="python-panel" tabindex="-1">Python preview</button><span id="result-label">Ready when you are</span></div>
+          <div id="output-panel" class="result-content" role="tabpanel" aria-labelledby="output-tab" tabindex="0"><div class="output-placeholder" id="output-placeholder"><span aria-hidden="true">&gt;_</span><p>A little code. A new possibility.</p><span>Run your program to see its output here.</span></div><pre id="output" class="output" dir="rtl" aria-label="Program output" hidden></pre></div>
+          <div id="python-panel" class="result-content" role="tabpanel" aria-labelledby="python-tab" tabindex="0" hidden><p class="python-note">The Python behind your Balkh code.</p><pre id="python" class="python" dir="ltr" aria-label="Generated Python">Select Python preview to translate your code.</pre></div>
+          <div class="result-footer"><span id="run-status" role="status" aria-live="polite">No program run yet</span><span>Python · WebAssembly</span></div>
+        </section>
+      </section>
+
+      <div class="execution-bar"><div class="execution-options"><label for="language">Error messages<select id="language"><option value="dari">Dari · دری</option><option value="pashto">Pashto · پښتو</option></select></label><button id="input-toggle" class="quiet-button" aria-expanded="false" aria-controls="input-panel">Program input <span aria-hidden="true">⌄</span></button></div><div class="run-actions"><span class="shortcut"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run</span><button id="stop" class="stop-button" disabled>Stop</button><button id="run" class="run-button" disabled><span aria-hidden="true">▶</span> Run code</button></div></div>
+      <section id="input-panel" class="input-panel" hidden><label for="stdin">Input for your program</label><p>For programs that use <code>input()</code> or its Balkh aliases, enter one answer per line before running. Input is consumed from top to bottom.</p><textarea id="stdin" dir="auto" rows="3" placeholder="One answer per line" spellcheck="false"></textarea></section>
+
+      <aside class="help-strip"><span class="help-symbol" aria-hidden="true">✦</span><p>Start with an example, change a word, and make it yours. <strong>Nothing to install.</strong></p><span class="help-detail">Fresh variables for every run.</span></aside>
+    </main>
+    <footer class="site-footer"><span>Made for expression. Built on Python.</span><span>Balkh <span lang="fa" dir="rtl">بلخ</span> <span class="footer-dot">·</span> <a href="./LICENSE">MIT license</a> <span class="footer-dot">·</span> <a href="./THIRD-PARTY-LICENSES.txt">Third-party licenses</a></span></footer>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>

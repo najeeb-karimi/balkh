@@ -13,12 +13,21 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
 - **VS Code Support:** Syntax highlighting for `.blk` files and an optional editor with right-aligned source and indentation for Dari and Pashto.
+- **Browser Playground:** Run Balkh in your browser with RTL editing and output, localized errors, and Python preview—no installation required.
+
+## 🌐 Browser Playground
+
+The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. Supply lines in **Program input** before running code that calls `input()`.
+
+Once GitHub Pages is enabled and the playground workflow has deployed, open [the Balkh playground](https://najeeb-karimi.github.io/balkh/). See the [playground README](playground/README.md) for local preview, browser limitations, testing, and deployment setup.
 
 ## 🚀 Quick Start
 
+Requires Python **3.8 or newer**.
+
 1. **Clone & Install:**
    ```bash
-   git clone https://github.com
+   git clone https://github.com/najeeb-karimi/balkh.git
    cd balkh
    pip install -e .
    ```

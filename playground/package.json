@@ -1,0 +1,20 @@
+{
+  "name": "balkh-playground",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "start": "node scripts/serve.cjs",
+    "test": "node --test tests/*.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "monaco-editor": "^0.57.0",
+    "playwright": "^1.65.1",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  },
+  "overrides": { "dompurify": "^3.4.18" }
+}

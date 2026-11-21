@@ -29,8 +29,9 @@ def normalize_digits(code: str) -> str:
     """Normalize code digits while preserving string literals and comments."""
     table = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "0123456789" * 2)
     preserved_types = {tokenize.STRING, tokenize.COMMENT}
-    if hasattr(tokenize, "FSTRING_MIDDLE"):
-        preserved_types.add(tokenize.FSTRING_MIDDLE)
+    for name in ("FSTRING_MIDDLE", "TSTRING_MIDDLE"):
+        if hasattr(tokenize, name):
+            preserved_types.add(getattr(tokenize, name))
     return _rewrite_tokens(
         code,
         lambda token: token.string

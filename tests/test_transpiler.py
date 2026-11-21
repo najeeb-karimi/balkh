@@ -116,6 +116,15 @@ def test_fstring_text_is_preserved_while_expressions_translate():
     assert namespace["value"] == "۱۲۳ {چاپ} 5"
 
 
+@pytest.mark.skipif(sys.version_info < (3, 14), reason="Template strings require Python 3.14+")
+def test_template_text_is_preserved_while_expressions_translate():
+    namespace = {}
+    exec(transpile('value = t"۱۲۳ {{چاپ}} {عدد(۲) + ۳}"'), namespace)
+    template = namespace["value"]
+    assert template.strings == ("۱۲۳ {چاپ} ", "")
+    assert template.interpolations[0].value == 5
+
+
 @pytest.mark.parametrize("source", ["", "# فقط یک توضیح\n"])
 def test_empty_programs(source):
     exec(transpile(source), {})
