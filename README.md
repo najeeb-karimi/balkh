@@ -1,6 +1,6 @@
 # 🏛️ Balkh (زبان برنامه‌نویسی بلخ)
 
-**Balkh** is the first bilingual **Dari & Pashto** programming language, transpiled directly to Python. 
+To our knowledge, **Balkh** is the first bilingual **Dari & Pashto** programming language, transpiled directly to Python.
 
 Named after the ancient Afghan center of science, mathematics, and literature (*Umm al-Bilad*), Balkh lets you write real Python programs using native Dari keywords, Pashto keywords, and Persian/Pashto numerals (`۰-۹`).
 
