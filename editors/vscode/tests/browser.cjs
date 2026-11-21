@@ -33,21 +33,27 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
     const source = fs.readFileSync(path.resolve(root, '../../examples/salam.blk'), 'utf8');
     await page.addInitScript(({ source }) => {
       let stored = {};
-      const host = window.testHost = { text: source, version: 1, saves: 0, commands: [], history: [source], redo: [], delay: 0 };
+      const host = window.testHost = { text: source, version: 1, saves: 0, runs: [], commands: [], history: [source], redo: [], delay: 0, holdEdits: false, waitingEdits: [] };
       const post = (data) => window.postMessage(data, '*');
       host.external = (text) => { host.text = text; post({ type: 'update', text, version: ++host.version }); };
       window.acquireVsCodeApi = () => ({
         getState: () => stored, setState: (value) => { stored = value; },
         postMessage: (message) => {
           if (message.type === 'ready') post({ type: 'init', text: host.text, version: host.version, options: { fontSize: 16, tabSize: 4, insertSpaces: true, wordWrap: 'off', readOnly: false } });
-          else if (message.type === 'edit') setTimeout(() => {
+          else if (message.type === 'edit') {
+            const apply = () => {
             if (message.version !== host.version) return post({ type: 'conflict', text: host.text, version: host.version });
             host.text = message.text;
             host.history.push(host.text);
             host.redo = [];
             post({ type: 'ack', id: message.id, text: host.text, version: ++host.version });
-          }, host.delay);
+            };
+            if (host.holdEdits) host.waitingEdits.push(apply);
+            else setTimeout(apply, host.delay);
+          }
           else if (message.type === 'save') host.saves++;
+          else if (message.type === 'run') host.runs.push(host.text);
+          else if (message.type === 'flushed') host.flushed = message.id;
           else if (message.type === 'command') {
             host.commands.push(message.command);
             if (message.command === 'undo' && host.history.length > 1) { host.redo.push(host.history.pop()); host.text = host.history.at(-1); }
@@ -94,6 +100,14 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
     await page.keyboard.press('Control+s');
     await page.waitForFunction(() => window.testHost.saves === 1);
     assert.equal((await page.evaluate(() => window.testHost.text)).replace(/\r\n/g, '\n'), edited);
+    await page.evaluate(() => { window.testHost.delay = 150; });
+    await page.keyboard.insertText(' # just typed');
+    await page.getByRole('button', { name: 'Run Balkh File', exact: true }).click();
+    await page.waitForFunction(() => window.testHost.runs.length === 1);
+    assert.ok((await page.evaluate(() => window.testHost.runs[0])).endsWith(' # just typed'));
+    await page.evaluate(() => window.postMessage({ type: 'flush', id: 42 }, '*'));
+    await page.waitForFunction(() => window.testHost.flushed === 42);
+    await page.locator('.view-line').first().click();
     await page.keyboard.press('Control+z');
     await page.waitForFunction(() => window.testHost.commands.includes('undo'));
     await page.keyboard.press('Control+y');
@@ -101,15 +115,18 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
 
     await page.evaluate(() => window.testHost.external('چاپ("بیرون")'));
     await page.waitForFunction(() => document.querySelector('.view-lines').textContent.includes('بیرون'));
-    await page.evaluate(() => { window.testHost.delay = 150; });
+    await page.evaluate(() => { window.testHost.holdEdits = true; });
+    await page.locator('.view-line').first().click();
     await page.keyboard.press('Control+End');
     await page.keyboard.insertText(' # local');
+    await page.waitForFunction(() => window.testHost.waitingEdits.length > 0);
     await page.evaluate(() => window.testHost.external('چاپ("external")'));
     await page.waitForSelector('#conflict:not([hidden])');
     await page.getByRole('button', { name: 'Use File Changes', exact: true }).click();
     await page.waitForSelector('#conflict[hidden]', { state: 'attached' });
     await page.waitForFunction(() => document.querySelector('.view-lines').textContent.includes('external'));
     assert.equal(await page.evaluate(() => window.testHost.text), 'چاپ("external")');
+    await page.evaluate(() => { for (const apply of window.testHost.waitingEdits.splice(0)) apply(); });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();

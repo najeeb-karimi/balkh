@@ -181,6 +181,9 @@ async function start() {
       documentReadOnly = message.options.readOnly;
       editor.updateOptions(message.options);
       displayState();
+    } else if (editor && message.type === 'flush') {
+      deferred.push(() => api.postMessage({ type: 'flushed', id: message.id }));
+      displayState();
     }
   });
   direction.addEventListener('click', () => {
@@ -194,6 +197,11 @@ async function start() {
     deferred.push(() => api.postMessage({ type: 'reopen' }));
     if (editor) displayState();
     else api.postMessage({ type: 'reopen' });
+  });
+  document.getElementById('run').addEventListener('click', () => {
+    if (!editor) return;
+    deferred.push(() => api.postMessage({ type: 'run' }));
+    displayState();
   });
   for (const [id, keepLocal] of [['keep-local', true], ['use-file', false]]) {
     document.getElementById(id).addEventListener('click', () => {

@@ -33,6 +33,7 @@
    * Provide comment toggling, bracket/quote pairing, word selection, folding, and block indentation. Generate keyword and indentation rules from `balkh/keywords.py`.
    * Add real TextMate/Oniguruma tokenizer tests, local VSIX packaging and installation instructions, and keep editor tooling out of the Python distribution.
    * Offer an optional Monaco-based RTL editor with right-aligned lines and indentation, the same highlighting grammar, an RTL/LTR toggle, VS Code document save/undo/redo, and external-change conflict handling.
+   * Run `.blk` files from the editor or Explorer in an Output channel with UTF-8 streaming and a Stop command, offer an interactive terminal option, save pending edits before execution, detect workspace Python environments, and configure Code Runner compatibility.
 
 7. **Create a Browser-Based Playground**
    * Use **Pyodide** (Python running in WebAssembly) to build a single-page web editor on GitHub Pages so anyone can write and run `.blk` code directly in their browser with zero installation.

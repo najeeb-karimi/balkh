@@ -1,8 +1,8 @@
 {
   "name": "balkh-language",
   "displayName": "Balkh Language",
-  "description": "Dari, Pashto, and mixed Python syntax highlighting for Balkh (.blk).",
-  "version": "0.2.0",
+  "description": "Balkh syntax highlighting, RTL editing, and program execution for Dari and Pashto (.blk).",
+  "version": "0.3.1",
   "publisher": "balkh",
   "license": "MIT",
   "engines": {
@@ -22,6 +22,53 @@
     "afghanistan"
   ],
   "contributes": {
+    "commands": [{
+      "command": "balkh.runFile",
+      "title": "Run Balkh File",
+      "category": "Balkh",
+      "icon": "$(play)",
+      "enablement": "isWorkspaceTrusted"
+    }, {
+      "command": "balkh.stopRun",
+      "title": "Stop Running Program",
+      "category": "Balkh",
+      "icon": "$(debug-stop)",
+      "enablement": "balkh.running"
+    }],
+    "menus": {
+      "editor/title": [{
+        "command": "balkh.stopRun",
+        "when": "balkh.running",
+        "group": "navigation@0"
+      }],
+      "editor/title/run": [{
+        "command": "balkh.runFile",
+        "when": "resourceExtname == .blk",
+        "group": "navigation@0"
+      }],
+      "explorer/context": [{
+        "command": "balkh.runFile",
+        "when": "resourceExtname == .blk && !explorerResourceIsFolder",
+        "group": "navigation"
+      }]
+    },
+    "configuration": {
+      "title": "Balkh",
+      "properties": {
+        "balkh.runInTerminal": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Run in an interactive terminal instead of the Balkh Output channel. Enable for programs that read keyboard input. Terminal RTL rendering depends on VS Code's terminal support."
+        },
+        "balkh.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Python executable for Run Balkh File. Leave empty to use the workspace .venv/venv Python, then python on Windows or python3 elsewhere. Supply an executable path, without shell quotes or arguments."
+        }
+      }
+    },
     "customEditors": [
       {
         "viewType": "balkh.rtlEditor",

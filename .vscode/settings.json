@@ -1,5 +1,11 @@
 {
     "workbench.editorAssociations": {
         "*.blk": "balkh.rtlEditor"
+    },
+    "code-runner.executorMap": {
+        "balkh": "python -X utf8 -u -m balkh.cli"
+    },
+    "code-runner.executorMapByFileExtension": {
+        ".blk": "python -X utf8 -u -m balkh.cli"
     }
 }

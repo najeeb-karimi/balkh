@@ -1,8 +1,25 @@
 const vscode = require('vscode');
 const { randomBytes } = require('node:crypto');
 const { replacement } = require('./sync.cjs');
+const { runDocument } = require('./runner.cjs');
+const { createOutputRunner } = require('./output-runner.cjs');
 
 function activate(context) {
+  const editors = new Map();
+  const output = createOutputRunner(vscode);
+  context.subscriptions.push(output, vscode.commands.registerCommand('balkh.stopRun', () => output.stop()));
+  context.subscriptions.push(vscode.commands.registerCommand('balkh.runFile', async (uri) => {
+    try {
+      uri ||= vscode.window.tabGroups.activeTabGroup.activeTab?.input?.uri || vscode.window.activeTextEditor?.document.uri;
+      const document = uri ? await vscode.workspace.openTextDocument(uri) : null;
+      const editor = document && editors.get(document.uri.toString());
+      if (editor && !await editor.flush()) {
+        vscode.window.showErrorMessage('Balkh could not synchronize the RTL editor. Resolve any pending changes or conflicts before running.');
+        return;
+      }
+      return await runDocument(vscode, document, process.platform, output);
+    } catch (error) { vscode.window.showErrorMessage(`Could not run Balkh: ${error.message}`); }
+  }));
   context.subscriptions.push(vscode.window.registerCustomEditorProvider('balkh.rtlEditor', {
     async resolveCustomTextEditor(document, panel) {
       const webview = panel.webview;
@@ -13,6 +30,19 @@ function activate(context) {
       let applying = false;
       let disposed = false;
       let queue = Promise.resolve();
+      let ready = false;
+      let flushId = 0;
+      const flushes = new Map();
+      const editor = {
+        flush: () => new Promise((resolve) => {
+          const id = ++flushId;
+          const finish = (success) => { clearTimeout(timer); flushes.delete(id); resolve(success); };
+          const timer = setTimeout(() => finish(false), 10000);
+          flushes.set(id, finish);
+          if (ready) webview.postMessage({ type: 'flush', id });
+        }),
+      };
+      editors.set(document.uri.toString(), editor);
       const snapshot = (type, extra = {}) => {
         if (!disposed) webview.postMessage({ type, text: document.getText(), version: document.version, ...extra });
       };
@@ -28,7 +58,11 @@ function activate(context) {
       const receive = webview.onDidReceiveMessage((message) => {
         queue = queue.then(async () => {
           if (disposed || !message || typeof message !== 'object') return;
-          if (message.type === 'ready') snapshot('init', { options: options() });
+          if (message.type === 'ready') {
+            ready = true;
+            snapshot('init', { options: options() });
+            for (const id of flushes.keys()) webview.postMessage({ type: 'flush', id });
+          }
           else if (message.type === 'edit' && typeof message.text === 'string' && Number.isInteger(message.id)) {
             if (message.version !== document.version) return snapshot('conflict');
             const change = replacement(document.getText(), message.text);
@@ -40,6 +74,8 @@ function activate(context) {
             finally { applying = false; }
             snapshot(accepted ? 'ack' : 'conflict', { id: message.id });
           } else if (message.type === 'save') await document.save();
+          else if (message.type === 'flushed') flushes.get(message.id)?.(true);
+          else if (message.type === 'run') await runDocument(vscode, document, process.platform, output);
           else if (message.type === 'command' && ['undo', 'redo'].includes(message.command)) {
             await vscode.commands.executeCommand(message.command);
           } else if (message.type === 'reopen') {
@@ -58,6 +94,9 @@ function activate(context) {
       });
       panel.onDidDispose(() => {
         disposed = true;
+        editors.delete(document.uri.toString());
+        for (const finish of flushes.values()) finish(false);
+        flushes.clear();
         receive.dispose(); changes.dispose(); settings.dispose();
       });
       webview.html = `<!DOCTYPE html>
@@ -67,7 +106,7 @@ function activate(context) {
 <link rel="stylesheet" href="${uri('editor.css')}">
 <link rel="stylesheet" href="${uri('webview.css')}">
 <title>Balkh RTL Editor</title></head><body>
-<header><span>Balkh · RTL</span><button id="direction" type="button">Switch to LTR</button><button id="standard" type="button">Open Standard Editor</button><span id="status" role="status">Loading editor…</span></header>
+<header><span>Balkh · RTL</span><button id="run" type="button">Run Balkh File</button><button id="direction" type="button">Switch to LTR</button><button id="standard" type="button">Open Standard Editor</button><span id="status" role="status">Loading editor…</span></header>
 <section id="conflict" hidden role="alert">The file changed elsewhere. Choose which changes to use.
 <button id="keep-local" type="button">Use My Edits</button><button id="use-file" type="button">Use File Changes</button></section>
 <main id="editor" aria-label="Balkh source editor"></main>
