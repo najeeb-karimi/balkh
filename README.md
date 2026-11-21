@@ -146,3 +146,7 @@ python -m pytest
 
 ## 🤝 Contributing
 Want to add better Pashto or Dari aliases, translate standard library wrappers (`ریاضی.py`), or add funny error messages? Pull requests are warmly welcomed!
+
+## ⚖️ License
+
+Balkh is licensed under the [MIT License](LICENSE), including the interpreter, examples, documentation, and VS Code extension. Bundled third-party components retain their respective licenses.

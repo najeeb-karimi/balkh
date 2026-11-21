@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A bilingual Dari & Pashto programming language transpiled to Python."
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 keywords = ["afghanistan", "dari", "pashto", "persian", "programming-language", "transpiler"]
 
 [project.optional-dependencies]
