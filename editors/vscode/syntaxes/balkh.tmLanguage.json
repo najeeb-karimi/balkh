@@ -1,0 +1,691 @@
+{
+  "name": "Balkh",
+  "scopeName": "source.balkh",
+  "fileTypes": [
+    "blk"
+  ],
+  "patterns": [
+    {
+      "include": "#expression"
+    }
+  ],
+  "repository": {
+    "expression": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "include": "#definitions"
+        },
+        {
+          "include": "#constants"
+        },
+        {
+          "include": "#keywords"
+        },
+        {
+          "include": "#builtins"
+        },
+        {
+          "include": "#brackets"
+        },
+        {
+          "include": "#operators"
+        },
+        {
+          "include": "#punctuation"
+        },
+        {
+          "include": "#identifiers"
+        }
+      ]
+    },
+    "comments": {
+      "name": "comment.line.number-sign.balkh",
+      "match": "(#).*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.comment.balkh"
+        }
+      }
+    },
+    "numbers": {
+      "name": "constant.numeric.balkh",
+      "match": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:[0۰٠](?:[xX](?:_?[0-9۰-۹٠-٩a-fA-F])+|[bB](?:_?[01۰۱٠١])+|[oO](?:_?[0-7۰-۷٠-٧])+)|(?:[0-9۰-۹٠-٩](?:_?[0-9۰-۹٠-٩])*\\.(?:[0-9۰-۹٠-٩](?:_?[0-9۰-۹٠-٩])*)?|\\.[0-9۰-۹٠-٩](?:_?[0-9۰-۹٠-٩])*|[0-9۰-۹٠-٩](?:_?[0-9۰-۹٠-٩])*)(?:[eE][+-]?[0-9۰-۹٠-٩](?:_?[0-9۰-۹٠-٩])*)?[jJ]?)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])"
+    },
+    "definitions": {
+      "patterns": [
+        {
+          "match": "((?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:فنکشن|تابع|def)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}]))(\\s+)([\\p{L}\\p{Nl}_][\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.balkh"
+            },
+            "3": {
+              "name": "entity.name.function.balkh"
+            }
+          }
+        },
+        {
+          "match": "((?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:class|صنف)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}]))(\\s+)([\\p{L}\\p{Nl}_][\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.type.balkh"
+            },
+            "3": {
+              "name": "entity.name.type.balkh"
+            }
+          }
+        }
+      ]
+    },
+    "constants": {
+      "name": "constant.language.balkh",
+      "match": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:False|None|True|درست|غلط|هیچ|هېڅ|سم)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])"
+    },
+    "keywords": {
+      "name": "keyword.control.balkh",
+      "match": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:غیرهمزمان|وگرنه_اگر|continue|nonlocal|که_نه_نو|finally|بالاخره|تېروتنه|خطا_بده|assert|except|global|import|lambda|return|انتظار|بعنوان|تاوقتی|سراسری|لامبدا|نړیوال|ودرېږه|په_پای|async|await|break|class|raise|while|yield|ادامه|برگشت|بېرته|دپاره|راوړل|فنکشن|وگرنه|که_نه|elif|else|from|pass|with|برای|تابع|ترڅو|تلاش|توقف|خالی|دوام|وارد|پرته|and|def|del|for|not|try|است|اگر|بجز|سره|صنف|لکه|هڅه|as|if|in|is|or|از|او|با|تش|در|دی|له|نه|که|کې|یا|و)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])"
+    },
+    "builtins": {
+      "name": "support.function.builtin.balkh",
+      "match": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])(?:اوږدوالی|پرانیستل|لغتنامه|اعشاری|محدوده|float|input|print|range|لیکنه|ورودی|چاپول|dict|list|open|type|حدود|رشته|سیند|لیست|ننوت|int|len|str|باز|طول|عدد|نوع|چاپ|ډول)(?![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])"
+    },
+    "brackets": {
+      "patterns": [
+        {
+          "begin": "\\(",
+          "end": "\\)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        },
+        {
+          "begin": "\\[",
+          "end": "\\]",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        },
+        {
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.brackets.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.balkh",
+      "match": "[-+*/%<>=!&|^~@]+|:="
+    },
+    "punctuation": {
+      "name": "punctuation.separator.balkh",
+      "match": "[.,:;]"
+    },
+    "identifiers": {
+      "name": "variable.other.readwrite.balkh",
+      "match": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])[\\p{L}\\p{Nl}_][\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}]*"
+    },
+    "continuation": {
+      "name": "constant.character.escape.balkh",
+      "begin": "\\\\$",
+      "end": "^"
+    },
+    "interpolation": {
+      "name": "meta.interpolation.balkh",
+      "contentName": "meta.embedded.expression.balkh",
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.interpolation.begin.balkh"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.interpolation.end.balkh"
+        }
+      },
+      "patterns": [
+        {
+          "name": "storage.modifier.conversion.balkh",
+          "match": "![sra](?=[:}])"
+        },
+        {
+          "include": "#format-spec"
+        },
+        {
+          "include": "#expression"
+        }
+      ]
+    },
+    "format-spec": {
+      "name": "meta.format-spec.balkh",
+      "begin": ":",
+      "end": "(?=\\})",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.separator.format-spec.balkh"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#interpolation"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.multi.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:fr|rf))(''')",
+          "end": "(''')",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:fr|rf))(\"\"\")",
+          "end": "(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:fr|rf))(')",
+          "end": "(')|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:fr|rf))(\")",
+          "end": "(\")|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:f))(''')",
+          "end": "(''')",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[^{}])"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:f))(\"\"\")",
+          "end": "(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[^{}])"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:f))(')",
+          "end": "(')|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[^{}])"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:f))(\")",
+          "end": "(\")|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[^{}])"
+            },
+            {
+              "name": "constant.character.escape.brace.balkh",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "include": "#interpolation"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:br|rb|r))(''')",
+          "end": "(''')",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:br|rb|r))(\"\"\")",
+          "end": "(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:br|rb|r))(')",
+          "end": "(')|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:br|rb|r))(\")",
+          "end": "(\")|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\[\\\\'\\\"]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:[ub]?))(''')",
+          "end": "(''')",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.multi.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:[ub]?))(\"\"\")",
+          "end": "(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:[ub]?))(')",
+          "end": "(')|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.balkh",
+          "begin": "(?<![\\p{L}\\p{M}\\p{N}\\p{Pc}\\x{200C}\\x{200D}])((?i:[ub]?))(\")",
+          "end": "(\")|$",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.string.balkh"
+            },
+            "2": {
+              "name": "punctuation.definition.string.begin.balkh"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.balkh"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#continuation"
+            },
+            {
+              "name": "constant.character.escape.balkh",
+              "match": "\\\\(?:N\\{[^}]*\\}|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

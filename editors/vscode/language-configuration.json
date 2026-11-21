@@ -1,0 +1,91 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    [
+      "(",
+      ")"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "{",
+      "}"
+    ]
+  ],
+  "autoClosingPairs": [
+    {
+      "open": "(",
+      "close": ")",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "[",
+      "close": "]",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "{",
+      "close": "}",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "'",
+      "close": "'",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "\"",
+      "close": "\"",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    }
+  ],
+  "surroundingPairs": [
+    [
+      "(",
+      ")"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "{",
+      "}"
+    ],
+    [
+      "'",
+      "'"
+    ],
+    [
+      "\"",
+      "\""
+    ]
+  ],
+  "folding": {
+    "offSide": true
+  },
+  "wordPattern": "[^\\s`~!@#$%^&*()=+\\[\\]{}\\\\|;:'\\\",.<>/?-]+",
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(?:(?:غیرهمزمان|async)\\s+)?(?:وگرنه_اگر|که_نه_نو|finally|بالاخره|except|تاوقتی|په_پای|class|while|دپاره|فنکشن|وگرنه|که_نه|elif|else|with|برای|تابع|ترڅو|تلاش|پرته|def|for|try|اگر|بجز|سره|صنف|هڅه|if|با|که)(?=\\s|:|\\(|$).*:\\s*(?:#.*)?$",
+    "decreaseIndentPattern": "^\\s*(?:(?:وگرنه_اگر|که_نه_نو|finally|بالاخره|except|په_پای|وگرنه|که_نه|elif|else|پرته|بجز)(?=\\s|:|$).*:|[\\]\\)}])"
+  }
+}

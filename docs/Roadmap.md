@@ -27,8 +27,12 @@
    * Use `--lang dari|pashto` for diagnostics in files, the REPL, and export validation. Send diagnostics to standard error and return a failing status for uncaught file errors.
    * Document behavior in `docs/Errors.md` and test both languages, nested calls, REPL recovery, custom messages, and exit statuses.
 
-6. **Build a VS Code Syntax Highlighting Extension**
-   * Create a lightweight TextMate grammar extension (`.tmLanguage.json`) that highlights Dari/Pashto keywords, strings, numbers, and comments in `.blk` files inside VS Code.
+6. **Build a VS Code Syntax Highlighting Extension — Complete**
+   * Add a declarative extension under `editors/vscode/`, associating `.blk` files with the `source.balkh` TextMate grammar.
+   * Highlight all current Dari/Pashto aliases, mixed English keywords, native numeric literals, comments, strings, f-string expressions, and function/class definitions, with Unicode-aware word boundaries.
+   * Provide comment toggling, bracket/quote pairing, word selection, folding, and block indentation. Generate keyword and indentation rules from `balkh/keywords.py`.
+   * Add real TextMate/Oniguruma tokenizer tests, local VSIX packaging and installation instructions, and keep editor tooling out of the Python distribution.
+   * Offer an optional Monaco-based RTL editor with right-aligned lines and indentation, the same highlighting grammar, an RTL/LTR toggle, VS Code document save/undo/redo, and external-change conflict handling.
 
 7. **Create a Browser-Based Playground**
    * Use **Pyodide** (Python running in WebAssembly) to build a single-page web editor on GitHub Pages so anyone can write and run `.blk` code directly in their browser with zero installation.

@@ -12,6 +12,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Interactive Shell:** Run `balkh` without a filename to try expressions, keep variables, and write multi-line programs live.
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
+- **VS Code Support:** Syntax highlighting for `.blk` files and an optional editor with right-aligned source and indentation for Dari and Pashto.
 
 ## 🚀 Quick Start
 
@@ -37,6 +38,8 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
    balkh
    ```
 
+   <div dir="rtl" align="right">
+
    ```text
    بلخ >>> نام = "بلخ"
    بلخ >>> چاپ("سلام", نام)
@@ -49,6 +52,8 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
    بلخ >>> دوبرابر(۴)
    8
    ```
+
+   </div>
 
    End an indented block with an empty line. Variables, functions, and imports stay available throughout the session. Press Ctrl+C to cancel pending input. Exit with `exit()`, `quit()`, or EOF (Ctrl+Z then Enter on Windows; Ctrl+D on Linux/macOS).
 
@@ -78,21 +83,29 @@ Saved files use UTF-8, with any encoding header updated to match. An explicitly 
 
 Import optional helpers from `balkh.stdlib`:
 
-```python
+<div dir="rtl" align="right">
+
+```balkh
 از balkh.stdlib وارد ریاضی, تصادفی, زمان
 چاپ(ریاضی.جذر(۸۱))
 چاپ(تصادفی.انتخاب(["بلخ", "کابل"]))
 چاپ(زمان.قالب(زمان.تاریخ(۲۰۲۴, ۲, ۲۸) + زمان.مدت(روز=۱)))
 ```
 
+</div>
+
 Pashto module names and functions are available too:
 
-```python
+<div dir="rtl" align="right">
+
+```balkh
 له balkh.stdlib راوړل ریاضي, تصادفي, وخت
 چاپول(ریاضي.مربع_ریښه(۸۱))
 چاپول(تصادفي.ټاکنه(["بلخ", "کابل"]))
 چاپول(وخت.بڼه(وخت.نېټه(۲۰۲۴, ۲, ۲۸) + وخت.موده(ورځې=۱)))
 ```
+
+</div>
 
 Run `balkh examples/stdlib.blk` or see the [standard library reference](docs/Stdlib.md) for the complete alias tables and behavior. These helpers work in the REPL and exported Python with Balkh installed. Dates use Python's Gregorian calendar.
 
@@ -108,6 +121,19 @@ balkh --lang pashto
 Common runtime errors include localized explanations and fix hints, with native-digit line numbers and the original source. The REPL remembers earlier function definitions when reporting errors. Python exception names and detailed messages remain available for debugging.
 
 Errors go to standard error, and uncaught file execution errors exit with status `1`. See the [error handling reference](docs/Errors.md) for examples, exception chains, and exit behavior.
+
+## 🎨 VS Code Support
+
+Build and install the local syntax-highlighting extension:
+
+```bash
+cd editors/vscode
+npm ci --ignore-scripts
+npm run package
+code --install-extension balkh-language-0.2.0.vsix
+```
+
+Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. It includes highlighting, indentation from the right, and an RTL/LTR toggle. The extension also provides comment toggling, bracket/quote pairing, and indentation support for Dari, Pashto, and English blocks. See the [extension README](editors/vscode/README.md) for prerequisites, RTL editor details, tests, and development instructions.
 
 ## 🧪 Running Tests
 

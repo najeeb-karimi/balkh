@@ -1,0 +1,11 @@
+html, body { height: 100%; width: 100%; padding: 0; margin: 0; overflow: hidden; }
+body { display: flex; flex-direction: column; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: var(--vscode-font-family); }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 12px; }
+header > span:first-child { font-weight: 600; margin-right: auto; }
+button { font: inherit; padding: 4px 8px; color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); border: 1px solid transparent; cursor: pointer; }
+button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+button:focus-visible { outline: 1px solid var(--vscode-focusBorder); }
+#status:empty { display: none; }
+#editor { flex: 1; min-height: 0; width: 100%; }
+#conflict { padding: 8px 12px; border-bottom: 1px solid var(--vscode-inputValidation-warningBorder); }
+[hidden] { display: none !important; }

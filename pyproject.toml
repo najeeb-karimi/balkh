@@ -17,6 +17,10 @@ test = ["pytest>=7.0"]
 [project.scripts]
 balkh = "balkh.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["balkh*"]
+namespaces = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
