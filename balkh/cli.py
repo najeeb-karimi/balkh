@@ -73,12 +73,12 @@ def main(argv=None):
     parser.add_argument("file", nargs="?", help="فایل برنامه (.blk یا .py)")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument(
-        "--py", action="store_true", help="نمایش کد ترجمه شده پایتون"
+        "--py", action="store_true", help="نمایش کود ترجمه شده پایتون"
     )
-    modes.add_argument("--to-py", metavar="OUTPUT", help="ذخیره کد پایتون در فایل")
+    modes.add_argument("--to-py", metavar="OUTPUT", help="ذخیره کود پایتون در فایل")
     modes.add_argument(
         "--to-blk", nargs="?", const="", metavar="OUTPUT",
-        help="ترجمه پایتون به بلخ؛ نمایش کد یا ذخیره در فایل",
+        help="ترجمه پایتون به بلخ؛ نمایش کود یا ذخیره در فایل",
     )
     parser.add_argument(
         "--lang", choices=("dari", "pashto"), default="dari",

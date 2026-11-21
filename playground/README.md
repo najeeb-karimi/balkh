@@ -4,6 +4,8 @@ A static, browser-based Balkh editor for GitHub Pages. Python runs in a [module 
 
 ## ✨ Features
 
+- English, Dari, and Pashto interface languages, with a header language button, RTL controls, and a remembered preference. English is the default.
+- Self-hosted Vazirmatn for Dari/Pashto interface text, including the trilingual headline and language menu.
 - Monaco editor with Dari, Pashto, and mixed Python syntax highlighting, native numerals, right-aligned indentation, and an RTL/LTR toggle.
 - Run and Stop controls, keyboard execution, RTL output, and Dari or Pashto diagnostics with original source locations.
 - Python preview without executing the program, `.blk` downloads, repository examples, and a locally saved source draft.
@@ -19,15 +21,25 @@ From the repository root:
 ```bash
 cd playground
 npm ci --ignore-scripts
+npm run dev
+```
+
+Open **http://127.0.0.1:4173/balkh/**. The development server rebuilds and refreshes the browser when playground code, styles, HTML, interpreter sources, examples, or shared highlighting assets change. Reloading preserves your source draft and restarts Python. If a build fails, the last successful version stays available; fixing the source triggers another build. Use Ctrl+C to stop the server, or `PORT` to choose another port. Restart it after changing build/server scripts or dependencies.
+
+To preview the production artifact instead:
+
+```bash
 npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:4173/balkh/**. Use `PORT` to choose another port. Serve the generated site over HTTP; opening `index.html` as a `file://` URL cannot load its workers and assets. Rebuild after changing source files.
+This serves `playground/dist/` without watching or injecting development code. Serve the site over HTTP; opening `index.html` as a `file://` URL cannot load its workers and assets.
 
 The build copies the current interpreter sources, examples, and licenses into ignored `playground/dist/`, and bundles the editor and tokenizer. It reuses the VS Code extension's generated grammar and token classification. Changes to keyword mappings should also regenerate that grammar with `python editors/vscode/scripts/generate-grammar.py`.
 
 ## 🧭 Using the Playground
+
+Use the language button in the header to choose **English**, **دری**, or **پښتو**. It updates the interface immediately and remembers the choice in this browser. The headline always welcomes visitors in all three languages; its supporting sentence follows the interface language. Interface language, source direction, and the error-message language are independent; switching the interface preserves code, output, input, and running programs.
 
 Choose an example or write code, then select **Run**. **Ctrl+Enter** (or **Cmd+Enter** on macOS) also runs the program. The diagnostics selector changes error explanations; both Dari and Pashto keywords work regardless of that setting. Python preview translates and validates the current source without executing it.
 
@@ -77,4 +89,4 @@ Later pushes affecting the interpreter, examples, playground, shared highlightin
 
 ## ⚖️ License
 
-The playground is covered by the repository's [MIT License](../LICENSE). Builds include `THIRD-PARTY-LICENSES.txt` for bundled editor and tokenizer components. Pyodide is loaded separately from its CDN and retains its own licenses.
+The playground is covered by the repository's [MIT License](../LICENSE). Builds include `THIRD-PARTY-LICENSES.txt` for bundled editor, tokenizer, and font components. The bundled [Vazirmatn fonts](assets/fonts/vazirmatn/README.md) retain their SIL Open Font License 1.1. Pyodide is loaded separately from its CDN and retains its own licenses.

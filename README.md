@@ -13,7 +13,7 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
 - **VS Code Support:** Syntax highlighting for `.blk` files and an optional editor with right-aligned source and indentation for Dari and Pashto.
-- **Browser Playground:** Run Balkh in your browser with RTL editing and output, localized errors, and Python preview—no installation required.
+- **Browser Playground:** Run Balkh in your browser with RTL editing and output, localized errors, and Python preview, no installation required.
 
 ## 🌐 Browser Playground
 

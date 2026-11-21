@@ -12,7 +12,7 @@ const mimeTypes = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm',
-  '.ttf': 'font/ttf', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
+  '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
 };
 let server;
 let browser;
@@ -322,4 +322,140 @@ test('large saved drafts survive reload in the fallback editor', { timeout: 6000
   } finally {
     await context.close();
   }
+});
+
+test('interface languages preserve running code, output, diagnostics, and saved preferences', { timeout: 180000 }, async () => {
+  const context = await editorContext({ locale: 'fa-AF', viewport: { width: 1365, height: 900 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const choose = async language => {
+    await page.locator('#ui-language-toggle').click();
+    await page.locator(`[data-ui-language="${language}"]`).click();
+  };
+  try {
+    await page.goto(baseUrl);
+    await ready(page);
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en', 'English is the default regardless of browser locale');
+    await page.evaluate(() => document.fonts.ready);
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('DOM.enable');
+    await cdp.send('CSS.enable');
+    const platformFonts = async selector => {
+      const { root } = await cdp.send('DOM.getDocument');
+      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+      return (await cdp.send('CSS.getPlatformFontsForNode', { nodeId })).fonts;
+    };
+    for (const language of ['fa-AF', 'ps-AF']) {
+      const fonts = await platformFonts(`.hero-line[lang="${language}"]`);
+      assert.ok(fonts.some(font => /^Vazirmatn(?: |$)/.test(font.familyName) && font.isCustomFont && font.glyphCount > 0),
+        `${language} must render with the bundled Vazirmatn font: ${JSON.stringify(fonts)}`);
+    }
+    assert.ok((await platformFonts('.hero-line[lang="en"]')).every(font => !font.familyName.startsWith('Vazirmatn')), 'Latin keeps its existing font stack');
+    const fontLicense = await context.request.get(new URL('assets/fonts/vazirmatn/OFL.txt', baseUrl).href);
+    assert.equal(fontLicense.ok(), true);
+    assert.match(await fontLicense.text(), /SIL OPEN FONT LICENSE Version 1\.1/);
+    const headline = await page.locator('#page-title').textContent();
+    const description = await page.locator('.intro-copy').textContent();
+    const draft = 'چاپ("UI_LANGUAGE_OUTPUT 😀")\n';
+    await source(page, draft);
+    await page.locator('#language').selectOption('pashto');
+    await page.locator('#direction').click();
+    await page.locator('#input-toggle').click();
+    await page.locator('#stdin').fill('ننوتۍ 😀');
+    const output = await run(page, 'UI_LANGUAGE_OUTPUT 😀');
+    await page.locator('#python-tab').click();
+    await ready(page);
+    const python = await page.locator('#python').textContent();
+
+    for (const [language, tag, label] of [['dari', 'fa-AF', 'اجرای کود'], ['pashto', 'ps-AF', 'کوډ چلول']]) {
+      await choose(language);
+      assert.equal(await page.locator('html').getAttribute('lang'), tag);
+      assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
+      assert.equal(await page.locator('#run-label').textContent(), label);
+      await page.evaluate(() => document.fonts.ready);
+      assert.ok((await platformFonts('#run-label')).some(font => /^Vazirmatn(?: |$)/.test(font.familyName) && font.isCustomFont && font.glyphCount > 0), 'Localized controls render with Vazirmatn');
+      assert.equal(await page.locator('#language').inputValue(), 'pashto');
+      assert.equal(await page.locator('#stdin').inputValue(), 'ننوتۍ 😀');
+      assert.equal(await page.locator('#direction').getAttribute('aria-pressed'), 'false');
+      assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), draft);
+      assert.equal(await page.locator('#python').textContent(), python, 'Changing UI language must preserve generated Python');
+      assert.equal(await page.locator('#python').getAttribute('dir'), 'ltr');
+      assert.equal(await page.locator('#output').innerText(), output);
+      assert.equal(await page.locator('#page-title').textContent(), headline);
+      assert.notEqual(await page.locator('.intro-copy').textContent(), description);
+      assert.notEqual(await page.locator('#run-status').textContent(), 'Python preview updated');
+      const bounds = await page.evaluate(() => ({ source: document.querySelector('.source-panel').getBoundingClientRect().x, results: document.querySelector('.result-panel').getBoundingClientRect().x }));
+      assert.ok(bounds.source > bounds.results, 'Source stays on the right in RTL interface mode');
+      for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        for (const line of await page.locator('.hero-line').all()) assert.ok(await line.isVisible());
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${language} overflows at ${width}px`);
+        await page.locator('#ui-language-toggle').click();
+        const menu = await page.locator('#ui-language-menu').boundingBox();
+        assert.ok(menu.x >= 0 && menu.x + menu.width <= width, 'The language menu stays inside the phone viewport');
+        await page.keyboard.press('Escape');
+      }
+      await page.setViewportSize({ width: 1365, height: 900 });
+    }
+    await page.reload();
+    await ready(page);
+    assert.equal(await page.locator('html').getAttribute('lang'), 'ps-AF');
+    assert.equal(await page.locator('#language').inputValue(), 'pashto');
+    assert.equal(await page.locator('#direction').getAttribute('aria-pressed'), 'false');
+    assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), draft);
+    await run(page, 'UI_LANGUAGE_OUTPUT 😀');
+
+    await source(page, 'print("LANGUAGE_SWITCH_RUNNING", flush=True)\nwhile True:\n    pass\n');
+    await page.locator('#run').click();
+    await page.waitForFunction(() => document.querySelector('#output').textContent.includes('LANGUAGE_SWITCH_RUNNING'));
+    await choose('dari');
+    assert.equal(await page.locator('#run-label').textContent(), 'در حال اجرا…');
+    assert.equal(await page.locator('#stop').isEnabled(), true);
+    assert.match(await page.locator('#output').textContent(), /LANGUAGE_SWITCH_RUNNING/);
+    await page.locator('#stop').click();
+    await ready(page);
+    assert.match(await page.locator('#output').textContent(), /برنامه متوقف شد/);
+
+    await page.locator('#ui-language-toggle').focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    assert.equal(await page.locator('#ui-language-toggle').getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('#ui-language-toggle').evaluate(el => el === document.activeElement), true);
+    await page.reload();
+    await ready(page);
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('language selection works with blocked storage and the basic editor', { timeout: 60000 }, async () => {
+  const context = await browser.newContext();
+  await context.addInitScript(() => {
+    Storage.prototype.getItem = () => { throw new Error('Storage blocked'); };
+    Storage.prototype.setItem = () => { throw new Error('Storage blocked'); };
+  });
+  await context.route('**/onig.wasm', route => route.abort('failed'));
+  await context.route('**/worker.js', route => route.abort('failed'));
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl);
+    await page.locator('.editor-fallback').waitFor();
+    await page.locator('#ui-language-toggle').click();
+    await page.locator('[data-ui-language="dari"]').click();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'fa-AF');
+    assert.equal(await page.locator('.editor-fallback').getAttribute('aria-label'), 'ویرایشگر کود بلخ');
+    await page.locator('.editor-fallback').fill('# keep my draft');
+    await page.waitForFunction(() => document.querySelector('#save-status').dataset.i18n === 'saveUnavailable');
+    assert.doesNotMatch(await page.locator('#save-status').textContent(), /Local saving/);
+    await page.locator('#ui-language-toggle').click();
+    await page.locator('[data-ui-language="pashto"]').click();
+    assert.equal(await page.locator('.editor-fallback').inputValue(), '# keep my draft');
+    assert.equal(await page.locator('#retry').textContent(), 'بیا هڅه');
+    await page.reload();
+    await page.locator('.editor-fallback').waitFor();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en', 'Without storage, the next visit defaults to English');
+  } finally { await context.close(); }
 });

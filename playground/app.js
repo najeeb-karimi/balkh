@@ -1,7 +1,9 @@
 import { createEditor } from './editor.js';
+import { applyLanguage, setLiteralText, setText, t } from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const STORAGE_KEY = 'balkh.playground.v1';
+const UI_LANGUAGE_KEY = 'balkh.playground.ui-language';
 const MAX_OUTPUT = 200_000;
 const fallbackSource = '# سلام به بلخ!\nچاپ("سلام دنیا!")\nچاپول("سلام نړۍ!")\n';
 let saved;
@@ -28,13 +30,55 @@ let selectedView = 'output';
 let replacingSource = false;
 let userEdited = false;
 if (saved?.language === 'pashto') $('language').value = 'pashto';
+let uiLanguage = 'en';
+try { uiLanguage = localStorage.getItem(UI_LANGUAGE_KEY) || 'en'; } catch { /* English works without storage. */ }
+
+function changeInterfaceLanguage(language) {
+  uiLanguage = applyLanguage(language);
+  editor?.setAriaLabel(t('sourceEditor'));
+}
+
+function closeLanguageMenu(returnFocus = false) {
+  $('ui-language-menu').hidden = true;
+  $('ui-language-toggle').setAttribute('aria-expanded', 'false');
+  if (returnFocus) $('ui-language-toggle').focus();
+}
+
+$('ui-language-toggle').addEventListener('click', () => {
+  const opening = $('ui-language-menu').hidden;
+  $('ui-language-menu').hidden = !opening;
+  $('ui-language-toggle').setAttribute('aria-expanded', String(opening));
+  if (opening) $('ui-language-menu').querySelector('[aria-pressed="true"]').focus();
+});
+for (const button of document.querySelectorAll('[data-ui-language]')) button.addEventListener('click', () => {
+  changeInterfaceLanguage(button.dataset.uiLanguage);
+  try { localStorage.setItem(UI_LANGUAGE_KEY, uiLanguage); } catch { /* Still switch for this visit. */ }
+  closeLanguageMenu(true);
+});
+document.addEventListener('click', event => {
+  if (!event.target.closest('.language-switcher')) closeLanguageMenu();
+});
+document.querySelector('.language-switcher').addEventListener('focusout', event => {
+  if (!event.currentTarget.contains(event.relatedTarget)) closeLanguageMenu();
+});
+document.querySelector('.language-switcher').addEventListener('keydown', event => {
+  if (event.key === 'Escape') { closeLanguageMenu(true); event.preventDefault(); }
+  if (!$('ui-language-menu').hidden && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    const choices = [...document.querySelectorAll('[data-ui-language]')];
+    const index = choices.indexOf(document.activeElement);
+    choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 :
+      (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length].focus();
+  }
+});
+changeInterfaceLanguage(uiLanguage);
 
 function saveNow() {
   clearTimeout(saveTimer);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, source, rtl, language: $('language').value, filename }));
-    $('save-status').textContent = 'Saved in this browser';
-  } catch { $('save-status').textContent = 'Local saving unavailable · download to keep your code'; }
+    setText('save-status', 'saved');
+  } catch { setText('save-status', 'saveUnavailable'); }
 }
 
 function persist() {
@@ -52,9 +96,9 @@ function sourceChanged(value) {
   }
   if (pythonSource !== source) {
     pythonSource = null;
-    if (selectedView === 'python') $('python').textContent = 'Source changed. Select Python preview again to refresh.';
+    if (selectedView === 'python') setText('python', 'previewStale');
   }
-  $('save-status').textContent = 'Saving…';
+  setText('save-status', 'saving');
   persist();
 }
 
@@ -66,11 +110,14 @@ function syncControls() {
   $('examples').disabled = !editor || samples.length === 0;
   $('language').disabled = !!active;
   $('python-tab').setAttribute('aria-disabled', String(!ready || !!active || !editor));
-  $('run').innerHTML = active?.type === 'run' ? '<span aria-hidden="true">▶</span> Running…' : '<span aria-hidden="true">▶</span> Run code';
+  const running = active?.type === 'run';
+  setText('run-label', running ? 'running' : 'run');
+  $('run-icon').classList.toggle('is-spinning', running);
+  $('run-icon').firstElementChild.setAttribute('href', running ? '#icon-loading' : '#icon-play');
 }
 
-function runtimeStatus(text, state) {
-  $('runtime-status').textContent = text;
+function runtimeStatus(key, state) {
+  setText('runtime-status', key);
   $('runtime-dot').className = `runtime-dot ${state || ''}`;
 }
 
@@ -99,7 +146,7 @@ function appendOutput(text, stream = 'stdout') {
   }
   if (text.length > available) {
     outputTruncated = true;
-    $('output').append(document.createTextNode('\n[Output limit reached. Stop the program if it keeps running.]\n'));
+    $('output').append(document.createTextNode(`\n${t('outputLimit')}\n`));
   }
   // Keep the view at the latest output unless the reader has scrolled upward.
   const panel = $('output-panel');
@@ -113,10 +160,10 @@ function failRuntime(message) {
   worker = null;
   ready = false;
   active = null;
-  runtimeStatus('Python could not start', 'error');
-  $('runtime-note').textContent = 'Check your connection and retry. Your source is kept here.';
+  runtimeStatus('runtimeFailed', 'error');
+  setText('runtime-note', 'failedNote');
   $('retry').hidden = false;
-  $('run-status').textContent = 'Runtime unavailable';
+  setText('run-status', 'runtimeUnavailable');
   appendOutput(`${message}\n`, 'stderr');
   syncControls();
 }
@@ -127,31 +174,31 @@ function startRuntime() {
   ready = false;
   active = null;
   $('retry').hidden = true;
-  runtimeStatus('Loading the Python runtime…', 'loading');
-  $('runtime-note').textContent = 'The first visit downloads Python. Your code stays in this browser.';
+  runtimeStatus('runtimeLoading', 'loading');
+  setText('runtime-note', 'loadingNote');
   syncControls();
   clearTimeout(loadingTimer);
-  loadingTimer = setTimeout(() => { if (generation === current && !ready) failRuntime('Loading timed out. Python needs a working connection to its runtime CDN. Please retry.'); }, 120_000);
+  loadingTimer = setTimeout(() => { if (generation === current && !ready) failRuntime(t('timeout')); }, 120_000);
   try {
     worker = new Worker(new URL('./worker.js', document.baseURI), { type: 'module' });
     worker.onerror = event => {
       if (current !== generation) return;
       event.preventDefault();
-      failRuntime(event.message || 'The Python worker stopped unexpectedly. Please retry.');
+      failRuntime(event.message || t('workerStopped'));
     };
-    worker.onmessageerror = () => { if (current === generation) failRuntime('The Python worker returned an unreadable response. Please retry.'); };
+    worker.onmessageerror = () => { if (current === generation) failRuntime(t('unreadableResponse')); };
     worker.onmessage = ({ data: message }) => {
       if (current !== generation || !message || typeof message !== 'object') return;
       if (message.type === 'ready') {
         clearTimeout(loadingTimer);
         ready = true;
-        runtimeStatus('Python is ready', '');
-        $('runtime-note').textContent = 'Your code runs locally. Each run starts with fresh variables.';
+        runtimeStatus('runtimeReady', '');
+        setText('runtime-note', 'readyNote');
         syncControls();
         return;
       }
       if (message.type === 'error' && message.id == null) {
-        failRuntime(message.message || 'The Python runtime could not be loaded. Please retry.');
+        failRuntime(message.message || t('runtimeLoadError'));
         return;
       }
       if (!active || message.id !== active.id) return;
@@ -160,15 +207,16 @@ function startRuntime() {
         const finished = active;
         active = null;
         if (typeof message.python === 'string') {
-          $('python').textContent = finished.source === source ? message.python : 'Source changed. Select Python preview again to refresh.';
+          if (finished.source === source) setLiteralText('python', message.python);
+          else setText('python', 'previewStale');
           pythonSource = finished.source === source ? source : null;
         }
         const success = message.type === 'result' && message.ok !== false;
-        if (message.type === 'error') appendOutput(`${message.message || 'The request failed.'}\n`, 'stderr');
-        if (finished.type === 'run' && outputLength === 0) appendOutput(success ? 'Program finished with no output.\n' : 'Program failed.\n', success ? 'stdout' : 'stderr');
-        $('run-status').textContent = success ? (finished.type === 'run' ? 'Finished successfully' : 'Python preview updated') : (finished.type === 'run' ? 'Finished with an error' : 'Translation failed');
-        $('result-label').textContent = success ? (finished.type === 'run' ? 'Run complete' : 'Translation complete') : 'Check the output';
-        runtimeStatus('Python is ready', '');
+        if (message.type === 'error') appendOutput(`${message.message || t('requestFailed')}\n`, 'stderr');
+        if (finished.type === 'run' && outputLength === 0) appendOutput(`${t(success ? 'noOutput' : 'programFailed')}\n`, success ? 'stdout' : 'stderr');
+        setText('run-status', success ? (finished.type === 'run' ? 'finished' : 'previewUpdated') : (finished.type === 'run' ? 'finishedError' : 'translationFailed'));
+        setText('result-label', success ? (finished.type === 'run' ? 'runComplete' : 'translationComplete') : 'checkOutput');
+        runtimeStatus('runtimeReady', '');
         if (!success && finished.type === 'translate') selectView('output', false);
         syncControls();
       }
@@ -184,13 +232,13 @@ function execute(type) {
   if (type === 'run') {
     selectView('output', false);
     clearOutput();
-    $('run-status').textContent = 'Running…';
-    $('result-label').textContent = 'Running your code';
+    setText('run-status', 'running');
+    setText('result-label', 'runningCode');
   } else {
-    $('python').textContent = 'Translating…';
-    $('run-status').textContent = 'Translating…';
+    setText('python', 'translating');
+    setText('run-status', 'translating');
   }
-  runtimeStatus(type === 'run' ? 'Running your program…' : 'Translating your source…', 'loading');
+  runtimeStatus(type === 'run' ? 'runtimeRunning' : 'runtimeTranslating', 'loading');
   syncControls();
   try { worker.postMessage({ type, id: active.id, source, language: $('language').value, stdin: $('stdin').value }); }
   catch (error) { failRuntime(error.message); }
@@ -215,9 +263,9 @@ function stop() {
   worker?.terminate();
   worker = null;
   active = null;
-  appendOutput(type === 'run' ? '\n[Program stopped.]\n' : '\n[Translation stopped.]\n', 'stderr');
-  $('run-status').textContent = 'Stopped · starting a fresh Python session';
-  $('result-label').textContent = 'Stopped';
+  appendOutput(`\n${t(type === 'run' ? 'programStopped' : 'translationStopped')}\n`, 'stderr');
+  setText('run-status', 'restarting');
+  setText('result-label', 'stopped');
   startRuntime();
 }
 
@@ -228,8 +276,14 @@ async function loadExamples() {
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error('The examples list is invalid.');
     samples = data.filter(sample => sample && typeof sample.id === 'string' && typeof sample.name === 'string' && typeof sample.source === 'string');
-    $('examples').replaceChildren(new Option('Your program', ''));
-    for (const sample of samples) $('examples').append(new Option(sample.name, sample.id));
+    const option = (key, value, fallback) => {
+      const item = new Option(key ? t(key) : fallback, value);
+      if (key) item.dataset.i18n = key;
+      return item;
+    };
+    $('examples').replaceChildren(option('yourProgram', ''));
+    const names = { salam: 'exampleHello', stdlib: 'exampleStdlib', bazi: 'exampleGame' };
+    for (const sample of samples) $('examples').append(option(names[sample.id], sample.id, sample.name));
     const salam = samples.find(sample => sample.id === 'salam') || samples[0];
     if (!saved && !userEdited && salam) {
       source = salam.source;
@@ -248,7 +302,9 @@ async function loadExamples() {
     }
     syncControls();
   } catch {
-    $('examples').replaceChildren(new Option('Examples unavailable', ''));
+    const option = new Option(t('examplesUnavailable'), '');
+    option.dataset.i18n = 'examplesUnavailable';
+    $('examples').replaceChildren(option);
     $('examples').disabled = true;
   }
 }
@@ -256,18 +312,20 @@ async function loadExamples() {
 function createFallback() {
   const textarea = document.createElement('textarea');
   textarea.className = 'editor-fallback';
-  textarea.setAttribute('aria-label', 'Balkh source editor');
+  textarea.setAttribute('aria-label', t('sourceEditor'));
+  textarea.dataset.i18nAriaLabel = 'sourceEditor';
   textarea.spellcheck = false;
   textarea.value = source;
   textarea.dir = rtl ? 'rtl' : 'ltr';
   textarea.addEventListener('input', () => sourceChanged(textarea.value));
   $('editor').replaceChildren(textarea);
-  $('save-status').textContent = 'Basic editor · syntax highlighting unavailable';
-  return { getValue: () => textarea.value, setValue: value => { textarea.value = value; sourceChanged(value); }, setDirection: value => { textarea.dir = value ? 'rtl' : 'ltr'; }, focus: () => textarea.focus() };
+  setText('save-status', 'fallbackEditor');
+  return { getValue: () => textarea.value, setValue: value => { textarea.value = value; sourceChanged(value); }, setDirection: value => { textarea.dir = value ? 'rtl' : 'ltr'; }, setAriaLabel: value => textarea.setAttribute('aria-label', value), focus: () => textarea.focus() };
 }
 
 $('file-name').textContent = filename;
-$('direction').textContent = rtl ? 'RTL ⇄' : 'LTR ⇄';
+$('direction-label').textContent = rtl ? 'RTL' : 'LTR';
+$('direction-icon').firstElementChild.setAttribute('href', rtl ? '#icon-align-right' : '#icon-align-left');
 $('direction').setAttribute('aria-pressed', String(rtl));
 $('run').addEventListener('click', () => execute('run'));
 $('stop').addEventListener('click', stop);
@@ -286,7 +344,8 @@ for (const id of ['output-tab', 'python-tab']) $(id).addEventListener('keydown',
 $('direction').addEventListener('click', () => {
   rtl = !rtl;
   editor?.setDirection(rtl);
-  $('direction').textContent = rtl ? 'RTL ⇄' : 'LTR ⇄';
+  $('direction-label').textContent = rtl ? 'RTL' : 'LTR';
+  $('direction-icon').firstElementChild.setAttribute('href', rtl ? '#icon-align-right' : '#icon-align-left');
   $('direction').setAttribute('aria-pressed', String(rtl));
   persist();
 });
@@ -337,8 +396,9 @@ window.addEventListener('pageshow', event => { if (event.persisted) startRuntime
 
 loadExamples();
 startRuntime();
-createEditor($('editor'), { source, rtl, onChange: sourceChanged, onRun: () => execute('run') }).then(value => {
+createEditor($('editor'), { source, rtl, ariaLabel: t('sourceEditor'), onChange: sourceChanged, onRun: () => execute('run') }).then(value => {
   editor = value;
+  editor.setAriaLabel(t('sourceEditor'));
   if (editor.getValue() !== source) { replacingSource = true; editor.setValue(source); replacingSource = false; }
   syncControls();
 }).catch(error => {

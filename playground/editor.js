@@ -47,7 +47,7 @@ async function setupLanguage() {
   });
 }
 
-export async function createEditor(container, { source, rtl, onChange, onRun }) {
+export async function createEditor(container, { source, rtl, ariaLabel, onChange, onRun }) {
   await setupLanguage();
   monaco.editor.defineTheme('balkh-playground', {
     base: 'vs-dark', inherit: true,
@@ -57,14 +57,17 @@ export async function createEditor(container, { source, rtl, onChange, onRun }) 
       { token: 'number', foreground: 'F4C582' },
       { token: 'comment', foreground: '72869E', fontStyle: 'italic' },
       { token: 'function', foreground: 'F3D798' },
-      { token: 'predefined', foreground: '79DDC8' },
-      { token: 'type', foreground: '79DDC8' },
+      { token: 'predefined', foreground: 'F48FB1' },
+      { token: 'type', foreground: 'F48FB1' },
       { token: 'constant', foreground: 'E8AD98' },
     ],
     colors: {
       'editor.background': '#111d2e', 'editor.foreground': '#dbe5ef', 'editorLineNumber.foreground': '#50657f',
-      'editorLineNumber.activeForeground': '#a4bacf', 'editorCursor.foreground': '#79ddc8',
-      'editor.selectionBackground': '#2e4a60', 'editor.lineHighlightBackground': '#16243a',
+      'editorLineNumber.activeForeground': '#a4bacf', 'editorCursor.foreground': '#f06292',
+      'editor.selectionBackground': '#f0629259', 'editor.inactiveSelectionBackground': '#f0629233',
+      'editor.selectionHighlightBackground': '#f48fb126', 'selection.background': '#f0629259',
+      'editor.lineHighlightBackground': '#16243a',
+      'focusBorder': '#f48fb1',
       'editorIndentGuide.background1': '#25354a', 'editorIndentGuide.activeBackground1': '#4a6079',
       'scrollbarSlider.background': '#53658144', 'scrollbarSlider.hoverBackground': '#53658177',
     },
@@ -78,7 +81,7 @@ export async function createEditor(container, { source, rtl, onChange, onRun }) 
     minimap: { enabled: false }, scrollBeyondLastLine: false, renderLineHighlight: 'line',
     lineNumbersMinChars: 3, folding: true, glyphMargin: false,
     unicodeHighlight: { ambiguousCharacters: false, nonBasicASCII: false, invisibleCharacters: false },
-    ariaLabel: 'Balkh source editor', accessibilitySupport: 'auto',
+    ariaLabel, accessibilitySupport: 'auto',
     // Keep the RTL line origin inside the viewport. With unwrapped long lines,
     // Monaco anchors every RTL line to its wider horizontal content canvas.
     wordWrap: 'on', wrappingIndent: 'same',
@@ -97,6 +100,7 @@ export async function createEditor(container, { source, rtl, onChange, onRun }) 
   container.dispatchEvent(new CustomEvent('balkh-editor-ready', { bubbles: true, detail: editor }));
   return {
     getValue: () => model.getValue(),
+    setAriaLabel: value => editor.updateOptions({ ariaLabel: value }),
     setValue(value) {
       // Opening an example must remain undoable so it cannot erase a draft.
       editor.pushUndoStop();
