@@ -44,6 +44,60 @@ def test_multiline_stdin_prompts_and_eof():
     assert "EOFError" in output["stderr"]
 
 
+def test_interactive_input_waits_at_each_read_and_flushes_prompts():
+    events = []
+    answers = iter(["بلخ 😀", "", None])
+
+    def read_line():
+        events.append(("read", ""))
+        return next(answers)
+
+    result = runner.run(
+        'def ask():\n    return ورودی("نام: ")\n'
+        'چاپ(ask())\nچاپ(repr(ننوت("تش: ")))\n'
+        'try:\n    input("EOF: ")\nexcept EOFError:\n    print("ended")\n',
+        "dari", "", lambda stream, text: events.append((stream, text)),
+        lambda: events.append(("flush", "")), read_line=read_line,
+    )
+    assert result["ok"]
+    assert "".join(text for stream, text in events if stream == "stdout") == "نام: بلخ 😀\nتش: ''\nEOF: ended\n"
+    assert sum(stream == "read" for stream, text in events) == 3
+    for position, (stream, _) in enumerate(events):
+        if stream == "read":
+            assert events[position - 1][0] == "flush"
+
+
+def test_interactive_stdin_partial_reads_iteration_and_persistent_eof():
+    from io import StringIO
+
+    answers = iter(["بلخ 😀", "Sara", "", None])
+    stream = runner._Input(lambda: next(answers))
+    expected = StringIO("بلخ 😀\nSara\n\n")
+    # A zero-length read must not request an answer.
+    assert stream.read(0) == stream.readline(0) == ""
+    for method, size in [("read", 2), ("readline", 2), ("readline", -1), ("read", 1)]:
+        assert getattr(stream, method)(size) == getattr(expected, method)(size)
+    assert list(stream) == list(expected)
+    assert stream.read() == stream.readline() == stream.read(1) == ""
+    assert stream.encoding == "utf-8"
+    stream.close()
+    with pytest.raises(ValueError, match="closed"):
+        stream.readline()
+
+
+@pytest.mark.parametrize("error", [OSError("input failed"), KeyboardInterrupt()])
+def test_interactive_input_errors_restore_native_streams(error):
+    before = (sys.stdin, sys.stdout, sys.stderr)
+
+    def read_line():
+        raise error
+
+    result = runner.run('input("prompt: ")\n', "dari", "", lambda *_: None, read_line=read_line)
+    assert not result["ok"]
+    assert (sys.stdin, sys.stdout, sys.stderr) == before
+    assert execute('print("recovered")\n')[1]["stdout"] == "recovered\n"
+
+
 def test_streams_are_separate_and_writes_are_immediate():
     events = []
     result = runner.run(

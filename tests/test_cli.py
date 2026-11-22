@@ -24,6 +24,21 @@ def run_cli(*args, input_text=None):
     )
 
 
+def test_file_input_keeps_native_python_stdin_for_cli_and_vscode(tmp_path):
+    path = tmp_path / "interactive.blk"
+    path.write_text(
+        'name = ورودی("نام: ")\n'
+        'place = ننوت("ځای: ")\n'
+        'empty = input("Empty: ")\n'
+        'چاپ(name, place, repr(empty))\n',
+        encoding="utf-8",
+    )
+    result = run_cli(path, input_text="بلخ 😀\nافغانستان\n\n")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "نام: ځای: Empty: بلخ 😀 افغانستان ''\n"
+    assert result.stderr == ""
+
+
 @pytest.fixture
 def program(tmp_path):
     path = tmp_path / "برنامه با فاصله.blk"

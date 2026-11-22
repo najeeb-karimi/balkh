@@ -38,7 +38,7 @@
 7. **Create a Browser-Based Playground — Complete**
    * Use **Pyodide** (Python running in WebAssembly) to build a single-page web editor on GitHub Pages so anyone can write and run `.blk` code directly in their browser with zero installation.
    * Add a Monaco editor with the extension's syntax grammar, RTL/LTR editing and right-aligned indentation, RTL output, Dari/Pashto diagnostics, Python preview, examples, source downloads, and a locally saved draft.
-   * Run the repository's interpreter and localized standard library in a module Web Worker, accept multiline input before execution, start each run with fresh variables, bound output, and stop infinite loops by restarting the worker.
+   * Run the repository's interpreter and localized standard library in a module Web Worker, accept interactive input in Output while programs run, start each run with fresh variables and input, bound output, and stop infinite loops or pending input by restarting the worker.
    * Build a static Pages artifact, test the Python bridge and real browser runtime, and add a GitHub Actions workflow for checks and deployment. Document local preview, browser limitations, and the repository's one-time Pages setup.
 
 8. **Publish to PyPI (`pip install balkh`)**

@@ -47,6 +47,154 @@ async function setupLanguage() {
   });
 }
 
+// Monaco keeps its own layout and hit testing intact. RTL chrome is rendered
+// beside the editor and synchronized through public viewport/scroll APIs.
+function directionalChrome(editor, container, host, gutter, scroll, spacer) {
+  let rtl = false;
+  let frame = 0;
+  let dragAnchor = null;
+  let syncedScrollTop = 0;
+  const numberRows = new Map();
+  const listeners = new AbortController();
+  const { signal } = listeners;
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(render); };
+  function syncScroll() {
+    if (!rtl) return;
+    const height = `${editor.getScrollHeight()}px`;
+    if (spacer.style.height !== height) spacer.style.height = height;
+    if (Math.abs(scroll.scrollTop - editor.getScrollTop()) > .5) scroll.scrollTop = editor.getScrollTop();
+    // Native scroll events arrive asynchronously. Remember the browser's rounded
+    // value so our own updates cannot cancel Monaco's next animation frame.
+    syncedScrollTop = scroll.scrollTop;
+  }
+  function lineAt(y) {
+    const bounds = host.getBoundingClientRect();
+    const x = bounds.left + editor.getLayoutInfo().contentLeft + 5;
+    return editor.getTargetAtClientPoint(x, Math.max(bounds.top + 1, Math.min(bounds.bottom - 1, y)))?.position?.lineNumber;
+  }
+  function render() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    if (!rtl) return;
+    editor.render();
+    const model = editor.getModel();
+    const font = editor.getOption(monaco.editor.EditorOption.fontInfo);
+    const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
+    const width = Math.ceil(Math.max(3, String(model.getLineCount()).length) * font.maxDigitWidth + 16);
+    const value = `${width}px`;
+    if (container.style.getPropertyValue('--editor-gutter-width') !== value) {
+      container.style.setProperty('--editor-gutter-width', value);
+      editor.layout();
+    }
+    gutter.style.font = `${font.fontSize}px/${lineHeight}px ${font.fontFamily}`;
+    syncScroll();
+    const visible = new Set();
+    for (const range of editor.getVisibleRanges()) {
+      for (let line = range.startLineNumber; line <= range.endLineNumber; line++) visible.add(line);
+    }
+    // getVisibleRanges excludes partial rows. Hit-test the two viewport edges
+    // to include those without inventing numbers for folded/hidden lines.
+    const bounds = host.getBoundingClientRect();
+    for (const y of [bounds.top + 1, bounds.bottom - 1]) {
+      const line = lineAt(y);
+      if (line) visible.add(line);
+    }
+    const retained = new Set();
+    for (const line of [...visible].sort((a, b) => a - b)) {
+      const top = editor.getTopForLineNumber(line) - editor.getScrollTop();
+      if (top + lineHeight <= 0 || top >= editor.getLayoutInfo().height) continue;
+      let row = numberRows.get(line);
+      if (!row) {
+        row = document.createElement('div');
+        row.className = 'editor-side-line-number';
+        row.dataset.line = String(line);
+        row.textContent = String(line);
+        numberRows.set(line, row);
+        gutter.append(row);
+      }
+      retained.add(line);
+      row.classList.toggle('active', line === editor.getPosition()?.lineNumber);
+      row.style.top = `${top}px`;
+      row.style.height = `${lineHeight}px`;
+    }
+    for (const [line, row] of numberRows) {
+      if (!retained.has(line)) { row.remove(); numberRows.delete(line); }
+    }
+  }
+  function selectLines(anchor, target) {
+    const model = editor.getModel();
+    const end = line => line < model.getLineCount() ? [line + 1, 1] : [line, model.getLineMaxColumn(line)];
+    const from = target < anchor ? end(anchor) : [anchor, 1];
+    const to = target < anchor ? [target, 1] : end(target);
+    editor.setSelection(new monaco.Selection(...from, ...to));
+  }
+  scroll.addEventListener('scroll', () => {
+    if (rtl && Math.abs(scroll.scrollTop - syncedScrollTop) > .5) {
+      editor.setScrollTop(scroll.scrollTop, monaco.editor.ScrollType.Immediate);
+      syncScroll();
+    }
+  }, { signal });
+  const forwardWheel = event => {
+    if (event.ctrlKey) return;
+    // Use the same wheel normalization, accumulated destination and animation
+    // over the code, numbers and scrollbar; native thumb dragging stays direct.
+    const forwarded = new WheelEvent('wheel', event);
+    editor.getDomNode().dispatchEvent(forwarded);
+    if (forwarded.defaultPrevented) event.preventDefault();
+  };
+  for (const surface of [gutter, scroll]) surface.addEventListener('wheel', forwardWheel, { passive: false, signal });
+  gutter.addEventListener('pointerdown', event => {
+    const line = Number(event.target.dataset.line);
+    if (event.button !== 0 || !line) return;
+    event.preventDefault();
+    dragAnchor = event.shiftKey ? editor.getSelection().selectionStartLineNumber : line;
+    gutter.setPointerCapture(event.pointerId);
+    editor.focus();
+    selectLines(dragAnchor, line);
+  }, { signal });
+  gutter.addEventListener('pointermove', event => {
+    if (dragAnchor === null) return;
+    const bounds = host.getBoundingClientRect();
+    if (event.clientY < bounds.top || event.clientY > bounds.bottom) {
+      const step = editor.getOption(monaco.editor.EditorOption.lineHeight);
+      editor.setScrollTop(editor.getScrollTop() + (event.clientY < bounds.top ? -step : step));
+      editor.render();
+    }
+    const line = lineAt(event.clientY);
+    if (line) selectLines(dragAnchor, line);
+  }, { signal });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) gutter.addEventListener(type, () => { dragAnchor = null; }, { signal });
+  const subscriptions = [
+    // Move the numbers in the same frame as Monaco's text. Scheduling another
+    // animation frame here makes the gutter visibly trail smooth scrolling.
+    editor.onDidScrollChange(() => { syncScroll(); render(); }), editor.onDidLayoutChange(schedule),
+    editor.onDidChangeModelContent(schedule), editor.onDidChangeCursorPosition(schedule),
+    editor.onDidChangeHiddenAreas(schedule), editor.onDidContentSizeChange(schedule),
+    editor.onDidChangeConfiguration(schedule),
+  ];
+  editor.onDidDispose(() => {
+    cancelAnimationFrame(frame);
+    listeners.abort();
+    for (const subscription of subscriptions) subscription.dispose();
+  });
+  return {
+    setDirection(value) {
+      rtl = value;
+      const scrollTop = editor.getScrollTop();
+      container.dataset.editorDirection = rtl ? 'rtl' : 'ltr';
+      gutter.hidden = scroll.hidden = !rtl;
+      editor.updateOptions({
+        lineNumbers: rtl ? 'off' : 'on',
+        overviewRulerLanes: rtl ? 0 : 3, hideCursorInOverviewRuler: rtl,
+        scrollbar: { vertical: rtl ? 'hidden' : 'visible', verticalScrollbarSize: rtl ? 0 : 12, verticalSliderSize: 8 },
+      });
+      editor.layout();
+      editor.setScrollTop(scrollTop);
+      schedule();
+    },
+  };
+}
+
 export async function createEditor(container, { source, rtl, ariaLabel, onChange, onRun }) {
   await setupLanguage();
   monaco.editor.defineTheme('balkh-playground', {
@@ -69,12 +217,24 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
       'editor.lineHighlightBackground': '#16243a',
       'focusBorder': '#f48fb1',
       'editorIndentGuide.background1': '#25354a', 'editorIndentGuide.activeBackground1': '#4a6079',
-      'scrollbarSlider.background': '#53658144', 'scrollbarSlider.hoverBackground': '#53658177',
+      'scrollbarSlider.background': '#72869e88', 'scrollbarSlider.hoverBackground': '#a4bacfcc',
+      'scrollbarSlider.activeBackground': '#a4bacf',
     },
   });
   container.replaceChildren();
+  const host = document.createElement('div');
+  host.className = 'editor-host';
+  const gutter = document.createElement('div');
+  gutter.className = 'editor-side-gutter';
+  gutter.setAttribute('aria-hidden', 'true');
+  const scroll = document.createElement('div');
+  scroll.className = 'editor-side-scroll';
+  scroll.setAttribute('aria-hidden', 'true');
+  const spacer = document.createElement('div');
+  scroll.append(spacer);
+  container.append(host, gutter, scroll);
   const model = monaco.editor.createModel(source, 'balkh');
-  const editor = monaco.editor.create(container, {
+  const editor = monaco.editor.create(host, {
     model, theme: 'balkh-playground', automaticLayout: true, fontSize: 16, lineHeight: 29,
     fontFamily: '"Cascadia Code", "Noto Sans Mono", Consolas, Tahoma, monospace',
     padding: { top: 17, bottom: 20 }, tabSize: 4, insertSpaces: true,
@@ -85,8 +245,15 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
     // Keep the RTL line origin inside the viewport. With unwrapped long lines,
     // Monaco anchors every RTL line to its wider horizontal content canvas.
     wordWrap: 'on', wrappingIndent: 'same',
-    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8, useShadows: false },
   });
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const updateMotion = () => editor.updateOptions({ smoothScrolling: !reducedMotion.matches });
+  updateMotion();
+  reducedMotion.addEventListener('change', updateMotion);
+  editor.onDidDispose(() => reducedMotion.removeEventListener('change', updateMotion));
+  const chrome = directionalChrome(editor, container, host, gutter, scroll, spacer);
+  chrome.setDirection(rtl);
   const decorations = editor.createDecorationsCollection();
   const align = () => decorations.set([{ range: model.getFullModelRange(), options: {
     description: 'Balkh source direction', isWholeLine: true,
@@ -107,7 +274,7 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
       editor.executeEdits('balkh-example', [{ range: model.getFullModelRange(), text: value }]);
       editor.pushUndoStop();
     },
-    setDirection(value) { rtl = value; align(); },
+    setDirection(value) { rtl = value; chrome.setDirection(rtl); align(); },
     focus: () => editor.focus(),
   };
 }

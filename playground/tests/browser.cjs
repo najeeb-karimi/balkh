@@ -48,7 +48,8 @@ before(async () => {
   });
   baseUrl = `http://127.0.0.1:${server.address().port}${prefix}`;
   const channel = process.env.PLAYWRIGHT_CHANNEL || process.env.BALKH_BROWSER || (process.platform === 'win32' ? 'msedge' : undefined);
-  browser = await chromium.launch({ headless: true, ...(channel ? { channel } : {}) });
+  // Exercise native scrollbar dragging too; Playwright hides browser bars by default.
+  browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--hide-scrollbars'], ...(channel ? { channel } : {}) });
 });
 
 after(async () => {
@@ -74,6 +75,11 @@ async function source(page, text) {
   assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), text.replace(/\r\n/g, '\n'));
 }
 
+async function chooseExample(page, id) {
+  await page.locator('#examples').click();
+  await page.locator(`#examples-menu [data-example="${id}"]`).click();
+}
+
 async function editorContext(options = {}) {
   const context = await browser.newContext(options);
   await context.addInitScript(() => {
@@ -84,8 +90,11 @@ async function editorContext(options = {}) {
         super(url, options);
         if (options?.type === 'module') {
           window.balkhOutputMessages = 0;
+          window.balkhInputMessages = [];
+          window.balkhRuntimeWorker = this;
           this.addEventListener('message', ({ data }) => {
             if (data.type === 'output') window.balkhOutputMessages++;
+            if (data.type === 'input') window.balkhInputMessages.push(data);
           });
         }
       }
@@ -123,7 +132,7 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
       assert.ok(colors.length >= 3, `Expected several syntax token colors, found ${colors}`);
       const output = await run(page, 'سلام احمد');
       assert.match(output, /سلام زرغونه/);
-      assert.match(output, /Hello سارا/);
+      assert.match(output, /Hello Sara/);
       assert.equal(await page.locator('#output').evaluate((element) => getComputedStyle(element).direction), 'rtl');
       if (process.env.BALKH_SCREENSHOT) await page.screenshot({ path: process.env.BALKH_SCREENSHOT, fullPage: true });
 
@@ -135,7 +144,7 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
       assert.match(download.suggestedFilename(), /\.blk$/);
       assert.equal((await fs.readFile(await download.path(), 'utf8')).replace(/\r\n/g, '\n'), savedSource);
 
-      await page.locator('#examples').selectOption('salam');
+      await chooseExample(page, 'salam');
       await page.locator('#editor .monaco-editor').click({ position: { x: 100, y: 75 } });
       await page.keyboard.press('ControlOrMeta+z');
       assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), savedSource,
@@ -156,9 +165,15 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
       assert.match(await page.locator('#python').innerText(), /print\("PREVIEW_MUST_NOT_RUN"\)/);
 
       await source(page, 'نام = ورودی("نام: ")\nژبه = ننوت("ژبه: ")\nچاپ(نام + " / " + ژبه)\n');
-      await page.locator('#input-toggle').click();
-      await page.locator('#stdin').fill('زرغونه\nپښتو\n');
-      assert.match(await run(page, 'زرغونه / پښتو'), /زرغونه \/ پښتو/);
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      await page.locator('#stdin').fill('زرغونه');
+      await page.locator('#stdin').press('Enter');
+      await page.waitForFunction(() => !document.querySelector('#input-form').hidden && document.querySelector('#output').textContent.includes('ژبه: '));
+      await page.locator('#stdin').fill('پښتو');
+      await page.locator('#stdin').press('Enter');
+      await ready(page);
+      assert.match(await page.locator('#output').textContent(), /زرغونه \/ پښتو/);
 
       await source(page, await fs.readFile(path.join(repository, 'examples/stdlib.blk'), 'utf8'));
       const output = await run(page, '2024-02-29');
@@ -186,6 +201,105 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
         'print("MODULE_FEATURES_OK")', '',
       ].join('\n'));
       await run(page, 'MODULE_FEATURES_OK');
+    });
+
+    await t.test('interactive input preserves execution, Unicode, EOF and Stop across interface languages', { timeout: 180000 }, async () => {
+      await source(page, [
+        'print("EXECUTED_ONCE", flush=True)',
+        'def ask():',
+        '    return input("Name: ")',
+        'name = ask()',
+        'place = ننوت("ځای: ")',
+        'empty = ورودی("Empty: ")',
+        'print(name + " / " + place + " / " + repr(empty))', '',
+      ].join('\n'));
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      assert.match(await page.locator('#output').textContent(), /EXECUTED_ONCE\nName: /);
+      assert.equal(await page.locator('#run').isDisabled(), true);
+      assert.equal(await page.locator('#stop').isEnabled(), true);
+      assert.equal(await page.locator('#stdin').evaluate(input => input === document.activeElement), true);
+      await page.locator('#stdin').fill('زرغونه 😀');
+      const waiting = await page.evaluate(() => window.balkhInputMessages.at(-1));
+      await page.evaluate(request => window.balkhRuntimeWorker.postMessage({ type: 'input-response', id: request.id, requestId: request.requestId + 100, value: 'stale', eof: false }), waiting);
+      for (const [language, tag] of [['dari', 'fa-AF'], ['pashto', 'ps-AF']]) {
+        await page.locator('#ui-language-toggle').click();
+        await page.locator(`[data-ui-language="${language}"]`).click();
+        assert.equal(await page.locator('html').getAttribute('lang'), tag);
+        assert.equal(await page.locator('#stdin').inputValue(), 'زرغونه 😀');
+        assert.equal(await page.locator('#input-form').isVisible(), true);
+        for (const width of [390, 320]) {
+          await page.setViewportSize({ width, height: 844 });
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+          const input = await page.locator('#stdin').boundingBox();
+          assert.ok(input.x >= 0 && input.x + input.width <= width);
+        }
+      }
+      await page.setViewportSize({ width: 1365, height: 900 });
+      await page.locator('#stdin').press('Enter');
+      await page.waitForFunction(() => !document.querySelector('#input-form').hidden && document.querySelector('#output').textContent.includes('ځای: '));
+      await page.locator('#stdin').fill('بلخ');
+      await page.locator('#input-form button[type="submit"]').click();
+      await page.waitForFunction(() => !document.querySelector('#input-form').hidden && document.querySelector('#output').textContent.includes('Empty: '));
+      await page.locator('#stdin').press('Enter');
+      await ready(page);
+      const transcript = await page.locator('#output').textContent();
+      assert.match(transcript, /زرغونه 😀 \/ بلخ \/ ''/);
+      assert.equal(transcript.match(/EXECUTED_ONCE/g).length, 1, 'Answering must resume the same execution rather than rerun side effects');
+      assert.equal(await page.locator('#output .stdin').count(), 3, 'Answers, including an empty line, stay in the transcript');
+      assert.equal(await page.locator('#input-form').isVisible(), false);
+      await page.locator('#ui-language-toggle').click();
+      await page.locator('[data-ui-language="en"]').click();
+
+      await source(page, 'input("End? ")\n');
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      await page.locator('#input-eof').click();
+      await ready(page);
+      assert.match(await page.locator('#output').textContent(), /EOFError/);
+
+      // Plain stdin readers use the same line prompts and retain EOF thereafter.
+      await source(page, 'import sys\nprint(repr(sys.stdin.read(2)))\nprint(repr(sys.stdin.readline()))\nprint(repr(sys.stdin.read()))\nprint(repr(sys.stdin.readline()))\n');
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      await page.locator('#stdin').fill('سلام😀');
+      await page.locator('#stdin').press('Enter');
+      await page.waitForFunction(() => !document.querySelector('#input-form').hidden && document.querySelector('#output').textContent.includes("'ام😀\\n'"));
+      await page.locator('#input-eof').click();
+      await ready(page);
+      assert.match(await page.locator('#output').textContent(), /'سل'\n'ام😀\\n'\n''\n''/);
+
+      await source(page, 'print(input("Stop here: "))\n');
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      const stoppedRequest = await page.evaluate(() => window.balkhInputMessages.at(-1));
+      await page.locator('#stdin').fill('discard this');
+      await page.locator('#stop').click();
+      assert.equal(await page.locator('#input-form').isVisible(), false);
+      await ready(page);
+      await page.locator('#run').click();
+      await page.locator('#input-form').waitFor();
+      assert.equal(await page.locator('#stdin').inputValue(), '');
+      await page.evaluate(request => window.balkhRuntimeWorker.postMessage({ ...request, type: 'input-response', value: 'stale', eof: false }), stoppedRequest);
+      await page.locator('#stdin').fill('fresh answer');
+      await page.locator('#stdin').press('Enter');
+      await ready(page);
+      assert.match(await page.locator('#output').textContent(), /fresh answer\nfresh answer/);
+      assert.doesNotMatch(await page.locator('#output').textContent(), /stale|discard this/);
+
+      await chooseExample(page, 'bazi');
+      await page.locator('#run').click();
+      for (let guess = 1; guess <= 10; guess++) {
+        await page.locator('#input-form').waitFor();
+        const requests = await page.evaluate(() => window.balkhInputMessages.length);
+        await page.locator('#stdin').fill(String(guess));
+        await page.locator('#stdin').press('Enter');
+        await page.waitForFunction(before => !document.querySelector('#run').disabled || window.balkhInputMessages.length > before, requests);
+        if (await page.locator('#run').isEnabled()) break;
+      }
+      await ready(page);
+      assert.match(await page.locator('#output').textContent(), /🎉/);
+      assert.equal(await page.locator('#input-form').isVisible(), false);
     });
 
     await t.test('verbose output stays bounded and is delivered in batches', async () => {
@@ -254,6 +368,33 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
   }
 });
 
+test('browsers without Promise Integration still run code and explain interactive input limits', { timeout: 180000 }, async () => {
+  const context = await editorContext();
+  await context.route('**/worker.js', async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: 'delete WebAssembly.Suspending; delete WebAssembly.promising;\n' + await response.text() });
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(baseUrl);
+    await ready(page);
+    assert.match(await page.locator('#runtime-note').textContent(), /Interactive input is unavailable/);
+    await source(page, 'print("NO_INPUT_STILL_WORKS")\n');
+    await run(page, 'NO_INPUT_STILL_WORKS');
+    await source(page, 'input("Name: ")\n');
+    await run(page, 'Interactive input is unavailable');
+    assert.equal(await page.locator('#input-form').isVisible(), false);
+    await page.locator('#python-tab').click();
+    await ready(page);
+    assert.match(await page.locator('#python').textContent(), /input\("Name: "\)/);
+    await source(page, 'print("RECOVERED")\n');
+    await run(page, 'RECOVERED');
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
 test('a failed runtime download can be retried without losing the draft', { timeout: 180000 }, async () => {
   const context = await editorContext();
   const page = await context.newPage();
@@ -287,12 +428,12 @@ test('examples wait for a slow editor to initialize', { timeout: 60000 }, async 
   const page = await context.newPage();
   try {
     await page.goto(baseUrl);
-    await page.waitForFunction(() => document.querySelector('#examples').options.length > 1);
+    await page.waitForFunction(() => document.querySelectorAll('#examples-menu [data-example]').length > 0);
     assert.equal(await page.locator('#examples').isDisabled(), true,
       'The example selector must wait until the editor can apply its selection');
     release();
     await page.waitForFunction(() => !!window.balkhTestEditor);
-    await page.locator('#examples').selectOption('stdlib');
+    await chooseExample(page, 'stdlib');
     assert.equal(await page.evaluate(() => window.balkhTestEditor.getValue()),
       (await fs.readFile(path.join(repository, 'examples/stdlib.blk'), 'utf8')).replace(/\r\n/g, '\n'));
   } finally {
@@ -361,8 +502,6 @@ test('interface languages preserve running code, output, diagnostics, and saved 
     await source(page, draft);
     await page.locator('#language').selectOption('pashto');
     await page.locator('#direction').click();
-    await page.locator('#input-toggle').click();
-    await page.locator('#stdin').fill('ننوتۍ 😀');
     const output = await run(page, 'UI_LANGUAGE_OUTPUT 😀');
     await page.locator('#python-tab').click();
     await ready(page);
@@ -376,7 +515,6 @@ test('interface languages preserve running code, output, diagnostics, and saved 
       await page.evaluate(() => document.fonts.ready);
       assert.ok((await platformFonts('#run-label')).some(font => /^Vazirmatn(?: |$)/.test(font.familyName) && font.isCustomFont && font.glyphCount > 0), 'Localized controls render with Vazirmatn');
       assert.equal(await page.locator('#language').inputValue(), 'pashto');
-      assert.equal(await page.locator('#stdin').inputValue(), 'ننوتۍ 😀');
       assert.equal(await page.locator('#direction').getAttribute('aria-pressed'), 'false');
       assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), draft);
       assert.equal(await page.locator('#python').textContent(), python, 'Changing UI language must preserve generated Python');
@@ -457,5 +595,246 @@ test('language selection works with blocked storage and the basic editor', { tim
     await page.reload();
     await page.locator('.editor-fallback').waitFor();
     assert.equal(await page.locator('html').getAttribute('lang'), 'en', 'Without storage, the next visit defaults to English');
+  } finally { await context.close(); }
+});
+
+test('program picker supports keyboard selection, localization and narrow screens', { timeout: 60000 }, async () => {
+  const context = await editorContext({ viewport: { width: 1365, height: 900 }, reducedMotion: 'no-preference' });
+  await context.route('**/worker.js', route => route.abort('failed'));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(baseUrl);
+    await page.waitForFunction(() => !document.querySelector('#examples').disabled);
+    const trigger = page.locator('#examples');
+    const menu = page.locator('#examples-menu');
+    assert.equal(await trigger.locator('.icon use').first().getAttribute('href'), '#icon-code');
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator(':focus').getAttribute('data-example'), 'salam');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#examples .disclosure-icon')).transform.startsWith('matrix(-1,'));
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#file-name').textContent(), 'bazi.blk');
+    assert.equal(await page.locator('#example-name').textContent(), 'Guessing game');
+    assert.equal(await menu.isVisible(), false);
+    assert.equal(await trigger.evaluate(button => button === document.activeElement), true);
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.locator(':focus').getAttribute('data-example'), 'bazi');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.locator(':focus').getAttribute('data-example'), 'stdlib');
+    await page.keyboard.press('Escape');
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('#file-name').textContent(), 'bazi.blk', 'Browsing and cancelling must not change the program');
+    await trigger.click();
+    await page.keyboard.press('Tab');
+    assert.equal(await menu.isVisible(), false, 'Tab should leave and close the picker');
+    await trigger.click();
+    await page.locator('#source-title').click();
+    assert.equal(await menu.isVisible(), false, 'Clicking outside should close the picker');
+    const program = await page.evaluate(() => window.balkhTestEditor.getValue());
+    for (const [language, label] of [['dari', 'بازی حدس عدد'], ['pashto', 'د شمېرې اټکل لوبه'], ['en', 'Guessing game']]) {
+      await page.locator('#ui-language-toggle').click();
+      await page.locator(`[data-ui-language="${language}"]`).click();
+      assert.equal(await page.locator('#example-name').textContent(), label);
+      assert.equal(await page.evaluate(() => window.balkhTestEditor.getValue()), program);
+      for (const width of [1365, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 900 });
+        await trigger.click();
+        const bounds = await menu.boundingBox();
+        const panel = await page.locator('.source-panel').boundingBox();
+        assert.ok(bounds.x >= panel.x && bounds.x + bounds.width <= panel.x + panel.width, `${language} picker is clipped at ${width}px`);
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+        await page.locator('[data-example="bazi"]').click();
+        assert.equal(await menu.isVisible(), false);
+        assert.equal(await page.locator('[data-example="bazi"]').getAttribute('aria-selected'), 'true');
+      }
+    }
+    await source(page, 'print("my draft")');
+    assert.equal(await page.locator('#example-name').textContent(), 'Your program');
+    assert.equal(await menu.locator('[aria-selected="true"]').count(), 0);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(await trigger.locator('.disclosure-icon').evaluate(icon => getComputedStyle(icon).transitionDuration), '0s');
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('editor scrolling stays smooth and synchronized across the code, gutter and scrollbar', { timeout: 60000 }, async () => {
+  const context = await editorContext({ viewport: { width: 1365, height: 900 }, reducedMotion: 'no-preference' });
+  await context.addInitScript(() => {
+    localStorage.setItem('balkh.playground.v1', JSON.stringify({
+      version: 1, source: Array.from({ length: 300 }, (_, i) => `print(${i})`).join('\n'), rtl: true, filename: 'scroll.blk',
+    }));
+  });
+  await context.route('**/worker.js', route => route.abort('failed'));
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl);
+    await page.locator('.editor-side-line-number').first().waitFor();
+    await page.evaluate(() => {
+      window.scrollTrace = [];
+      window.balkhTestEditor.onDidScrollChange(event => {
+        const row = document.querySelector('.editor-side-line-number');
+        const hostTop = document.querySelector('.editor-host').getBoundingClientRect().top;
+        if (event.scrollTopChanged) window.scrollTrace.push({
+          top: event.scrollTop, bar: document.querySelector('.editor-side-scroll').scrollTop,
+          gutterDrift: row ? row.getBoundingClientRect().top - hostTop
+            - window.balkhTestEditor.getTopForLineNumber(Number(row.dataset.line)) + event.scrollTop : null,
+        });
+      });
+    });
+    const wheel = async (selector, delta, count = 1) => {
+      await page.evaluate(() => { window.scrollTrace = []; });
+      await page.locator(selector).hover();
+      for (let i = 0; i < count; i++) await page.mouse.wheel(0, delta);
+      // Let the last wheel animation and any delayed native scroll events settle.
+      await page.waitForTimeout(350);
+      return page.evaluate(() => window.scrollTrace);
+    };
+    const monotonic = (trace, direction, rtl) => {
+      assert.ok(trace.length > 2, 'A wheel step should animate rather than jump');
+      for (let i = 0; i < trace.length; i++) {
+        if (rtl) {
+          assert.ok(Math.abs(trace[i].bar - trace[i].top) < 1, 'The native thumb must follow every editor scroll frame');
+          assert.ok(trace[i].gutterDrift !== null && Math.abs(trace[i].gutterDrift) < 1, 'Line numbers must move with the text, without a frame of lag');
+        }
+        if (i) assert.ok((trace[i].top - trace[i - 1].top) * direction >= 0, 'Scrolling must not vibrate backwards');
+      }
+    };
+    for (const selector of ['.editor-host', '.editor-side-gutter', '.editor-side-scroll']) {
+      await page.evaluate(() => window.balkhTestEditor.setScrollTop(500));
+      const down = await wheel(selector, 120, 4);
+      monotonic(down, 1, true);
+      assert.ok(down.at(-1).top >= 690, 'Successive wheel steps must accumulate without losing momentum');
+      const up = await wheel(selector, -120, 4);
+      monotonic(up, -1, true);
+      assert.ok(Math.abs(up.at(-1).top - 500) < 2, 'Opposite wheel steps must cover the same distance');
+    }
+    await page.locator('#direction').click();
+    monotonic(await wheel('.editor-host', 120, 4), 1, false);
+    await page.locator('#direction').click();
+    // Honour the OS preference, including changes while the page is open.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const immediate = await wheel('.editor-side-gutter', 120);
+    assert.equal(immediate.length, 1, 'Reduced motion should disable scroll animation');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    monotonic(await wheel('.editor-side-gutter', 120), 1, true);
+  } finally { await context.close(); }
+});
+
+test('editor direction swaps line numbers and scrollbar while preserving editing, folding, and scrolling', { timeout: 60000 }, async () => {
+  const draft = [
+    '# Directional editor chrome', '# ' + 'بیا سلام '.repeat(16),
+    'def example():', '    for i in range(3):', '        print(i)', '',
+    ...Array.from({ length: 150 }, (_, index) => `print(${index})`), '',
+  ].join('\n');
+  const context = await editorContext({ viewport: { width: 1365, height: 900 } });
+  await context.addInitScript(source => {
+    localStorage.setItem('balkh.playground.v1', JSON.stringify({ version: 1, source, rtl: true, filename: 'program.blk' }));
+  }, draft);
+  await context.route('**/worker.js', route => route.abort('failed'));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(baseUrl);
+    await page.locator('.editor-side-line-number').first().waitFor();
+    const chrome = async rtl => {
+      const gutter = await page.locator(rtl ? '.editor-side-gutter' : '.monaco-editor .margin').boundingBox();
+      const bar = await page.locator(rtl ? '.editor-side-scroll' : '.monaco-editor .scrollbar.vertical').boundingBox();
+      assert.ok(rtl ? bar.x + bar.width <= gutter.x : gutter.x + gutter.width <= bar.x, 'Line numbers and scrollbar must occupy opposite sides');
+      assert.equal(await page.locator('#editor').getAttribute('data-editor-direction'), rtl ? 'rtl' : 'ltr');
+      assert.equal((await page.evaluate(() => window.balkhTestEditor.getValue())).replace(/\r\n/g, '\n'), draft);
+    };
+    const aligned = async () => {
+      await page.waitForFunction(() => {
+        const editor = window.balkhTestEditor;
+        const top = document.querySelector('.editor-host').getBoundingClientRect().top;
+        const rows = [...document.querySelectorAll('.editor-side-line-number')];
+        return rows.length && rows.every(row => Math.abs(row.getBoundingClientRect().top - top - editor.getTopForLineNumber(Number(row.dataset.line)) + editor.getScrollTop()) < 1);
+      });
+    };
+    await chrome(true);
+    await aligned();
+    await page.locator('.editor-host').hover();
+    await page.mouse.wheel(0, 340);
+    await page.waitForFunction(() => window.balkhTestEditor.getScrollTop() > 0);
+    await aligned();
+    await page.waitForFunction(() => Math.abs(document.querySelector('.editor-side-scroll').scrollTop - window.balkhTestEditor.getScrollTop()) < 1);
+
+    // Drag the actual browser scrollbar, rather than simulating a scroll event.
+    await page.evaluate(() => window.balkhTestEditor.setScrollTop(0));
+    await page.waitForFunction(() => document.querySelector('.editor-side-scroll').scrollTop === 0);
+    await page.locator('.editor-side-scroll').hover();
+    const track = await page.locator('.editor-side-scroll').boundingBox();
+    const scrollHeight = await page.evaluate(() => window.balkhTestEditor.getScrollHeight());
+    const thumb = Math.max(28, track.height * track.height / scrollHeight);
+    await page.mouse.move(track.x + 4, track.y + thumb / 2);
+    await page.mouse.down();
+    await page.mouse.move(track.x + 4, track.y + 180, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForFunction(() => window.balkhTestEditor.getScrollTop() > 400);
+    await aligned();
+
+    await page.evaluate(() => { window.balkhTestEditor.setScrollTop(0); window.balkhTestEditor.render(); });
+    await page.locator('.editor-side-line-number[data-line="3"]').waitFor();
+    await page.locator('.editor-side-line-number[data-line="3"]').click();
+    const selection = await page.evaluate(() => window.balkhTestEditor.getSelection());
+    assert.equal(selection.startLineNumber, 3);
+    assert.equal(selection.endLineNumber, 4);
+    assert.equal(selection.startColumn, 1);
+    assert.equal(selection.endColumn, 1);
+
+    const previousTop = await page.evaluate(() => window.balkhTestEditor.getTopForLineNumber(7));
+    await page.evaluate(async () => {
+      window.balkhTestEditor.setPosition({ lineNumber: 3, column: 1 });
+      await window.balkhTestEditor.getAction('editor.fold').run();
+    });
+    await page.waitForFunction(before => window.balkhTestEditor.getTopForLineNumber(7) < before, previousTop);
+    await aligned();
+    assert.equal(await page.locator('.editor-side-line-number[data-line="4"]').count(), 0, 'Folded lines must not have phantom numbers');
+    await page.evaluate(() => window.balkhTestEditor.getAction('editor.unfoldAll').run());
+    await page.locator('.editor-side-line-number[data-line="4"]').waitFor();
+
+    // A real click and keyboard edit must still hit the native text coordinates.
+    const point = await page.evaluate(() => {
+      const editor = window.balkhTestEditor;
+      const p = editor.getScrolledVisiblePosition({ lineNumber: 3, column: 1 });
+      const box = editor.getDomNode().getBoundingClientRect();
+      return { x: box.left + p.left, y: box.top + p.top + p.height / 2 };
+    });
+    await page.mouse.click(point.x, point.y);
+    await page.keyboard.insertText('#');
+    assert.ok((await page.evaluate(() => window.balkhTestEditor.getModel().getLineContent(3))).includes('#'));
+    await page.keyboard.press('ControlOrMeta+z');
+    await chrome(true);
+
+    const cursor = await page.evaluate(() => window.balkhTestEditor.getSelection());
+    await page.locator('#direction').click();
+    await page.locator('.monaco-editor .line-numbers').first().waitFor();
+    await chrome(false);
+    assert.deepEqual(await page.evaluate(() => window.balkhTestEditor.getSelection()), cursor);
+    await page.locator('#ui-language-toggle').click();
+    await page.locator('[data-ui-language="pashto"]').click();
+    await chrome(false);
+    await page.locator('#direction').click();
+    await page.locator('.editor-side-line-number').first().waitFor();
+    await chrome(true);
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await aligned();
+      await chrome(true);
+      const range = await page.locator('.editor-host .view-line').first().evaluate(line => {
+        const range = document.createRange();
+        range.selectNodeContents(line);
+        return { right: range.getBoundingClientRect().right, gutter: document.querySelector('.editor-side-gutter').getBoundingClientRect().left };
+      });
+      assert.ok(range.right <= range.gutter + 1, 'Wrapped RTL source must stop before the right-hand gutter');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    }
+    assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });

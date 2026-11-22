@@ -6,10 +6,10 @@ A static, browser-based Balkh editor for GitHub Pages. Python runs in a [module 
 
 - English, Dari, and Pashto interface languages, with a header language button, RTL controls, and a remembered preference. English is the default.
 - Self-hosted Vazirmatn for Dari/Pashto interface text, including the trilingual headline and language menu.
-- Monaco editor with Dari, Pashto, and mixed Python syntax highlighting, native numerals, right-aligned indentation, and an RTL/LTR toggle.
+- Monaco editor with Dari, Pashto, and mixed Python syntax highlighting, native numerals, right-aligned indentation, and an RTL/LTR toggle. RTL puts line numbers on the right and the scrollbar on the left; LTR reverses them.
 - Run and Stop controls, keyboard execution, RTL output, and Dari or Pashto diagnostics with original source locations.
 - Python preview without executing the program, `.blk` downloads, repository examples, and a locally saved source draft.
-- Optional multiline input supplied before running, including programs that call `input()` repeatedly.
+- Interactive input in Output: answer each prompt as the program runs, including repeated prompts, empty answers, Unicode text, and end-of-input.
 - Localized math, random, and date/time wrappers from `balkh.stdlib`.
 
 ## 🚀 Local Preview
@@ -41,9 +41,11 @@ The build copies the current interpreter sources, examples, and licenses into ig
 
 Use the language button in the header to choose **English**, **دری**, or **پښتو**. It updates the interface immediately and remembers the choice in this browser. The headline always welcomes visitors in all three languages; its supporting sentence follows the interface language. Interface language, source direction, and the error-message language are independent; switching the interface preserves code, output, input, and running programs.
 
-Choose an example or write code, then select **Run**. **Ctrl+Enter** (or **Cmd+Enter** on macOS) also runs the program. The diagnostics selector changes error explanations; both Dari and Pashto keywords work regardless of that setting. Python preview translates and validates the current source without executing it.
+Choose an example or write code, then select **Run** in the source toolbar alongside **Stop**, **RTL/LTR**, and **Download**. **Ctrl+Enter** (or **Cmd+Enter** on macOS) also runs the program. The diagnostics selector changes error explanations; both Dari and Pashto keywords work regardless of that setting. Python preview translates and validates the current source without executing it.
 
-For `input()`, expand **Program input** and enter one response per line before running. Reading beyond the supplied input raises `EOFError`; this is not a live terminal. For the guessing-game example, supplying `1` through `10` on separate lines guarantees the random target is eventually reached.
+When a program calls `input()`, `ورودی`, or `ننوت`, its prompt appears in **Output** with an answer field. Type one answer and press Enter or **Send**; execution resumes from that point and the answer remains in the transcript. Empty answers are supported. The guessing game now asks for one guess at a time and responds before asking again.
+
+**End input** sends EOF: `input()` raises `EOFError`, while `sys.stdin` readers can finish normally. EOF lasts for the rest of that run. **Stop** also works while a program is waiting for an answer. A new run starts with fresh input, and UI-language changes preserve an answer being typed. Answers are not written to browser storage. The CLI keeps native Python stdin.
 
 Each execution starts with fresh program variables and a fresh input stream. The worker's imported modules and virtual filesystem remain until the runtime is restarted. **Stop** terminates the Python worker and creates a new runtime, so it works even for an infinite loop without cross-origin isolation or special GitHub Pages headers. Restarting discards runtime files and module state while preserving the editor draft.
 
@@ -52,6 +54,8 @@ Your source draft is stored in this browser's local storage when available. Down
 ## 📦 Browser Limits
 
 The first load downloads the pinned **Pyodide 314.0.8** runtime from jsDelivr and can take a moment on slower connections. Later loads can reuse the browser's HTTP cache. An internet connection is required for the runtime; offline use is not guaranteed. Load failures display a retry control.
+
+Interactive input uses Pyodide's [JavaScript Promise Integration](https://blog.pyodide.org/posts/jspi/) to suspend synchronous Python without rewriting the program or requiring special hosting headers. Use a browser that supports it, such as current Chrome or Edge. Support is detected in the worker; other browsers can still run programs without input and preview Python, and get a clear message if a program requests interactive input.
 
 Python's browser runtime differs from a desktop installation: subprocesses, ordinary OS sockets, and native desktop libraries are unavailable. This playground includes Balkh and Pyodide's standard library; it does not automatically install arbitrary third-party Python packages. The browser's virtual filesystem is temporary, and very large programs can still exhaust browser memory. Displayed output is capped to keep verbose programs responsive.
 

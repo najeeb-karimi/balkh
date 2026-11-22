@@ -16,10 +16,14 @@ let rtl = saved?.rtl !== false;
 let filename = typeof saved?.filename === 'string' && /^[\w.-]+\.blk$/.test(saved.filename) ? saved.filename : 'salam.blk';
 let editor;
 let samples = [];
+let selectedExample = '';
+const exampleNames = { salam: 'exampleHello', stdlib: 'exampleStdlib', bazi: 'exampleGame' };
 let worker;
 let generation = 0;
 let sequence = 0;
 let active = null;
+let inputRequest = null;
+let interactiveInput = true;
 let ready = false;
 let loadingTimer;
 let saveTimer;
@@ -73,6 +77,69 @@ document.querySelector('.language-switcher').addEventListener('keydown', event =
 });
 changeInterfaceLanguage(uiLanguage);
 
+function closeExamplesMenu(returnFocus = false) {
+  $('examples-menu').hidden = true;
+  $('examples').setAttribute('aria-expanded', 'false');
+  if (returnFocus) $('examples').focus();
+}
+
+function openExamplesMenu(last = false) {
+  if ($('examples').disabled) return;
+  $('examples-menu').hidden = false;
+  $('examples').setAttribute('aria-expanded', 'true');
+  const choices = [...$('examples-menu').querySelectorAll('[data-example]')];
+  (last ? choices.at(-1) : choices.find(choice => choice.getAttribute('aria-selected') === 'true') || choices[0])?.focus();
+}
+
+function updateExampleChoice() {
+  const sample = samples.find(item => item.id === selectedExample);
+  if (!sample) setText('example-name', 'yourProgram');
+  else if (exampleNames[sample.id]) setText('example-name', exampleNames[sample.id]);
+  else setLiteralText('example-name', sample.name);
+  for (const choice of $('examples-menu').querySelectorAll('[data-example]')) {
+    choice.setAttribute('aria-selected', String(choice.dataset.example === selectedExample));
+  }
+}
+
+function chooseExample(sample) {
+  if (!editor) return;
+  replacingSource = true;
+  filename = `${sample.id.replace(/[^\w.-]/g, '_')}.blk`;
+  editor.setValue(sample.source);
+  replacingSource = false;
+  source = sample.source;
+  selectedExample = sample.id;
+  updateExampleChoice();
+  $('file-name').textContent = filename;
+  closeExamplesMenu(true);
+  persist();
+}
+
+$('examples').addEventListener('click', () => {
+  if ($('examples-menu').hidden) openExamplesMenu();
+  else closeExamplesMenu();
+});
+document.addEventListener('click', event => {
+  if (!event.target.closest('.example-picker')) closeExamplesMenu();
+});
+document.querySelector('.example-picker').addEventListener('focusout', event => {
+  if (!event.currentTarget.contains(event.relatedTarget)) closeExamplesMenu();
+});
+document.querySelector('.example-picker').addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('examples-menu').hidden) {
+    closeExamplesMenu(true);
+    event.preventDefault();
+  }
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    if ($('examples-menu').hidden) { openExamplesMenu(event.key === 'ArrowUp' || event.key === 'End'); return; }
+    const choices = [...$('examples-menu').querySelectorAll('[data-example]')];
+    const index = choices.indexOf(document.activeElement);
+    choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 :
+      (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus();
+  }
+});
+
 function saveNow() {
   clearTimeout(saveTimer);
   try {
@@ -91,7 +158,8 @@ function sourceChanged(value) {
   if (!replacingSource) {
     userEdited = true;
     filename = 'program.blk';
-    $('examples').value = '';
+    selectedExample = '';
+    updateExampleChoice();
     $('file-name').textContent = filename;
   }
   if (pythonSource !== source) {
@@ -121,12 +189,45 @@ function runtimeStatus(key, state) {
   $('runtime-dot').className = `runtime-dot ${state || ''}`;
 }
 
+function closeInput() {
+  inputRequest = null;
+  $('input-form').hidden = true;
+  $('stdin').value = '';
+}
+
+function requestInput(message) {
+  if (active?.type !== 'run' || !Number.isSafeInteger(message.requestId)) return;
+  inputRequest = { id: active.id, requestId: message.requestId };
+  selectView('output', false);
+  $('output-placeholder').hidden = true;
+  $('output').hidden = false;
+  $('input-form').hidden = false;
+  runtimeStatus('waitingInput', 'waiting');
+  setText('run-status', 'waitingInput');
+  setText('result-label', 'waitingInput');
+  $('stdin').focus({ preventScroll: true });
+  $('input-form').scrollIntoView({ block: 'nearest' });
+}
+
+function sendInput(eof = false) {
+  if (!inputRequest || active?.id !== inputRequest.id) return;
+  const request = inputRequest;
+  const value = $('stdin').value;
+  if (!eof) appendOutput(`${value}\n`, 'stdin');
+  closeInput();
+  runtimeStatus('runtimeRunning', 'loading');
+  setText('run-status', 'running');
+  setText('result-label', 'runningCode');
+  try { worker.postMessage({ type: 'input-response', ...request, value, eof }); }
+  catch (error) { failRuntime(error.message); }
+}
+
 function clearOutput() {
   $('output').replaceChildren();
   outputLength = 0;
   outputTruncated = false;
-  $('output').hidden = true;
-  $('output-placeholder').hidden = false;
+  $('output').hidden = !inputRequest;
+  $('output-placeholder').hidden = !!inputRequest;
 }
 
 function appendOutput(text, stream = 'stdout') {
@@ -140,7 +241,7 @@ function appendOutput(text, stream = 'stdout') {
   if (last && last.className === stream) last.append(document.createTextNode(slice));
   else {
     const span = document.createElement('span');
-    span.className = stream === 'stderr' ? 'stderr' : 'stdout';
+    span.className = stream === 'stderr' ? 'stderr' : stream === 'stdin' ? 'stdin' : 'stdout';
     span.textContent = slice;
     $('output').append(span);
   }
@@ -154,6 +255,7 @@ function appendOutput(text, stream = 'stdout') {
 }
 
 function failRuntime(message) {
+  closeInput();
   clearTimeout(loadingTimer);
   generation++;
   worker?.terminate();
@@ -169,6 +271,7 @@ function failRuntime(message) {
 }
 
 function startRuntime() {
+  closeInput();
   worker?.terminate();
   const current = ++generation;
   ready = false;
@@ -193,7 +296,8 @@ function startRuntime() {
         clearTimeout(loadingTimer);
         ready = true;
         runtimeStatus('runtimeReady', '');
-        setText('runtime-note', 'readyNote');
+        interactiveInput = message.interactiveInput !== false;
+        setText('runtime-note', interactiveInput ? 'readyNote' : 'inputUnsupported');
         syncControls();
         return;
       }
@@ -203,7 +307,9 @@ function startRuntime() {
       }
       if (!active || message.id !== active.id) return;
       if (message.type === 'output') appendOutput(message.text, message.stream);
+      else if (message.type === 'input') requestInput(message);
       else if (message.type === 'result' || message.type === 'error') {
+        closeInput();
         const finished = active;
         active = null;
         if (typeof message.python === 'string') {
@@ -229,6 +335,7 @@ function execute(type) {
   if (!ready || active || !editor) return;
   source = editor.getValue();
   active = { type, id: ++sequence, source };
+  closeInput();
   if (type === 'run') {
     selectView('output', false);
     clearOutput();
@@ -240,11 +347,12 @@ function execute(type) {
   }
   runtimeStatus(type === 'run' ? 'runtimeRunning' : 'runtimeTranslating', 'loading');
   syncControls();
-  try { worker.postMessage({ type, id: active.id, source, language: $('language').value, stdin: $('stdin').value }); }
+  try { worker.postMessage({ type, id: active.id, source, language: $('language').value }); }
   catch (error) { failRuntime(error.message); }
 }
 
 function selectView(view, translate = true) {
+  if (view === 'python' && (!ready || active || !editor)) return;
   selectedView = view;
   for (const name of ['output', 'python']) {
     const selected = name === view;
@@ -258,6 +366,7 @@ function selectView(view, translate = true) {
 function stop() {
   if (!active) return;
   const type = active.type;
+  closeInput();
   // Terminating the dedicated worker also interrupts Python loops that never yield.
   generation++;
   worker?.terminate();
@@ -276,14 +385,18 @@ async function loadExamples() {
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error('The examples list is invalid.');
     samples = data.filter(sample => sample && typeof sample.id === 'string' && typeof sample.name === 'string' && typeof sample.source === 'string');
-    const option = (key, value, fallback) => {
-      const item = new Option(key ? t(key) : fallback, value);
-      if (key) item.dataset.i18n = key;
-      return item;
-    };
-    $('examples').replaceChildren(option('yourProgram', ''));
-    const names = { salam: 'exampleHello', stdlib: 'exampleStdlib', bazi: 'exampleGame' };
-    for (const sample of samples) $('examples').append(option(names[sample.id], sample.id, sample.name));
+    const choices = samples.map(sample => {
+      const choice = document.createElement('button');
+      choice.type = 'button';
+      choice.setAttribute('role', 'option');
+      choice.tabIndex = -1;
+      choice.dataset.example = sample.id;
+      if (exampleNames[sample.id]) choice.dataset.i18n = exampleNames[sample.id];
+      choice.textContent = exampleNames[sample.id] ? t(exampleNames[sample.id]) : sample.name;
+      choice.addEventListener('click', () => chooseExample(sample));
+      return choice;
+    });
+    $('examples-menu').replaceChildren(...choices);
     const salam = samples.find(sample => sample.id === 'salam') || samples[0];
     if (!saved && !userEdited && salam) {
       source = salam.source;
@@ -293,18 +406,18 @@ async function loadExamples() {
         editor.setValue(source);
         replacingSource = false;
       }
-      $('examples').value = salam.id;
+      selectedExample = salam.id;
       $('file-name').textContent = filename;
       persist();
     } else {
       const matching = samples.find(sample => sample.source === source);
-      if (matching) $('examples').value = matching.id;
+      if (matching) selectedExample = matching.id;
     }
+    updateExampleChoice();
     syncControls();
   } catch {
-    const option = new Option(t('examplesUnavailable'), '');
-    option.dataset.i18n = 'examplesUnavailable';
-    $('examples').replaceChildren(option);
+    setText('example-name', 'examplesUnavailable');
+    closeExamplesMenu();
     $('examples').disabled = true;
   }
 }
@@ -350,23 +463,8 @@ $('direction').addEventListener('click', () => {
   persist();
 });
 $('language').addEventListener('change', persist);
-$('input-toggle').addEventListener('click', () => {
-  const opening = $('input-panel').hidden;
-  $('input-panel').hidden = !opening;
-  $('input-toggle').setAttribute('aria-expanded', String(opening));
-  if (opening) $('stdin').focus();
-});
-$('examples').addEventListener('change', () => {
-  const sample = samples.find(item => item.id === $('examples').value);
-  if (!sample || !editor) return;
-  replacingSource = true;
-  filename = `${sample.id.replace(/[^\w.-]/g, '_')}.blk`;
-  editor.setValue(sample.source);
-  replacingSource = false;
-  source = sample.source;
-  $('file-name').textContent = filename;
-  persist();
-});
+$('input-form').addEventListener('submit', event => { event.preventDefault(); sendInput(); });
+$('input-eof').addEventListener('click', () => sendInput(true));
 $('download').addEventListener('click', () => {
   if (!editor) return;
   const url = URL.createObjectURL(new Blob([editor.getValue()], { type: 'text/plain;charset=utf-8' }));
@@ -383,6 +481,7 @@ document.addEventListener('keydown', event => {
   }
 });
 window.addEventListener('pagehide', () => {
+  closeInput();
   saveNow();
   generation++;
   worker?.terminate();

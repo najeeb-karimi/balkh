@@ -69,10 +69,12 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
     await page.waitForSelector('.view-line[dir="rtl"]');
     await page.waitForFunction(() => [...document.querySelectorAll('.view-line span')].some((span) => span.textContent === 'چاپ'));
     await page.evaluate(() => document.fonts.ready);
-    const indentation = await page.locator('.view-line').evaluateAll((lines) => lines.slice(2, 5).map((line) => {
+    const functionLine = source.split(/\r?\n/).findIndex(line => line.startsWith('تابع '));
+    assert.ok(functionLine >= 0, 'sample must contain a nested function block');
+    const indentation = await page.locator('.view-line').evaluateAll((lines, start) => lines.slice(start, start + 3).map((line) => {
       const token = [...line.querySelectorAll('span span')].find((span) => span.textContent.trim());
       return line.getBoundingClientRect().right - token.getBoundingClientRect().right;
-    }));
+    }), functionLine);
     assert.ok(indentation[1] > indentation[0] + 25, `first block is not indented from the right: ${indentation}`);
     assert.ok(indentation[2] > indentation[1] + 25, `nested block is not indented from the right: ${indentation}`);
     const layout = await page.locator('.view-line').first().evaluate((line) => {

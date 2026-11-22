@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO, TextIOBase
+from operator import index
 import sys
 from types import ModuleType
 
@@ -54,7 +55,61 @@ class _Output(TextIOBase):
             self.budget.flush()
 
 
-def _process(source, language, stdin, emit, execute, flush=None):
+class _Input(TextIOBase):
+    """A line-at-a-time text stream; None from the callback means persistent EOF."""
+
+    def __init__(self, read_line, flush=None):
+        self._read_line = read_line
+        self._flush = flush
+        self._pending = ""
+        self._eof = False
+
+    @property
+    def encoding(self):
+        return "utf-8"
+
+    def readable(self):
+        return True
+
+    def isatty(self):
+        return True
+
+    def _fill(self):
+        if self._flush is not None:
+            self._flush()
+        line = self._read_line()
+        if line is None:
+            self._eof = True
+        elif not isinstance(line, str):
+            raise TypeError("input callback must return a string or None")
+        else:
+            self._pending += line + "\n"
+
+    def read(self, size=-1):
+        if self.closed:
+            raise ValueError("I/O operation on closed file")
+        size = -1 if size is None else index(size)
+        while not self._eof and (size < 0 or len(self._pending) < size):
+            self._fill()
+        end = len(self._pending) if size < 0 else size
+        value, self._pending = self._pending[:end], self._pending[end:]
+        return value
+
+    def readline(self, size=-1):
+        if self.closed:
+            raise ValueError("I/O operation on closed file")
+        size = -1 if size is None else index(size)
+        if not self._pending and not self._eof and size != 0:
+            self._fill()
+        newline = self._pending.find("\n")
+        end = newline + 1 if newline >= 0 else len(self._pending)
+        if size >= 0:
+            end = min(size, end)
+        value, self._pending = self._pending[:end], self._pending[end:]
+        return value
+
+
+def _process(source, language, stdin, emit, execute, flush=None, read_line=None):
     if language not in ("dari", "pashto"):
         raise ValueError("language must be 'dari' or 'pashto'")
     if not isinstance(source, str) or not isinstance(stdin, str):
@@ -71,7 +126,7 @@ def _process(source, language, stdin, emit, execute, flush=None):
             python_code = transpile(source)
             code = compile(python_code, FILENAME, "exec")
             if execute:
-                sys.stdin = StringIO(stdin)
+                sys.stdin = _Input(read_line, flush) if read_line is not None else StringIO(stdin)
                 # Module-aware libraries (dataclasses, pickle, and imports of
                 # __main__) must see the same namespace as the user's code.
                 program = ModuleType("__main__")
@@ -95,14 +150,25 @@ def _process(source, language, stdin, emit, execute, flush=None):
     return {"ok": True, "python": python_code}
 
 
-def run(source, language, stdin, emit, flush=None):
-    """Run once with fresh globals and pre-supplied multiline standard input.
+def run(source, language, stdin, emit, flush=None, read_line=None):
+    """Run once with fresh globals and a line callback or supplied standard input.
 
     ``emit(stream, text)`` receives writes immediately. This is process-style
     namespace isolation, not a Python security sandbox: imported modules and
     the worker's virtual filesystem persist until the worker is restarted.
     """
-    return _process(source, language, stdin, emit, execute=True, flush=flush)
+    return _process(source, language, stdin, emit, execute=True, flush=flush, read_line=read_line)
+
+
+def run_interactive(source, language, request_input, emit, flush=None):
+    """Browser-only adapter. The CLI and VS Code keep using native Python stdin."""
+    def read_line():
+        from pyodide.ffi import run_sync
+
+        response = run_sync(request_input())
+        return None if response.eof else response.value
+
+    return run(source, language, "", emit, flush, read_line=read_line)
 
 
 def translate(source, language, emit, flush=None):

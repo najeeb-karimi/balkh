@@ -7,6 +7,9 @@ let runtime = null;
 let runner = null;
 let initializing = null;
 let busy = false;
+let pendingInput = null;
+let inputSequence = 0;
+const interactiveInput = typeof WebAssembly.Suspending === "function" && typeof WebAssembly.promising === "function";
 
 async function fetchText(path) {
   const response = await fetch(path);
@@ -40,10 +43,18 @@ async function initialize() {
 self.onmessage = async ({ data }) => {
   const id = data && data.id;
   try {
+    if (data?.type === "input-response") {
+      if (!pendingInput || id !== pendingInput.id || data.requestId !== pendingInput.requestId ||
+          typeof data.value !== "string" || typeof data.eof !== "boolean") return;
+      const { resolve } = pendingInput;
+      pendingInput = null;
+      resolve({ value: data.value, eof: data.eof });
+      return;
+    }
     if (data && data.type === "init") {
       initializing ||= initialize();
       await initializing;
-      self.postMessage({ type: "ready" });
+      self.postMessage({ type: "ready", interactiveInput });
       return;
     }
     if (!data || !["run", "translate"].includes(data.type)) {
@@ -51,8 +62,7 @@ self.onmessage = async ({ data }) => {
     }
     if (!runner) throw new Error("The Python runtime is not ready.");
     if (busy) throw new Error("A program is already running.");
-    if (typeof data.source !== "string" || !["dari", "pashto"].includes(data.language) ||
-        (data.type === "run" && typeof data.stdin !== "string")) {
+    if (typeof data.source !== "string" || !["dari", "pashto"].includes(data.language)) {
       throw new Error("Invalid playground request.");
     }
     busy = true;
@@ -82,15 +92,27 @@ self.onmessage = async ({ data }) => {
     };
     let result;
     try {
-      result = data.type === "run"
-        ? runner.run(data.source, data.language, data.stdin, emit, flush)
-        : runner.translate(data.source, data.language, emit, flush);
+      const requestInput = () => {
+        if (!interactiveInput) throw new Error("Interactive input is unavailable in this browser. Try a current version of Chrome or Edge.");
+        flush();
+        return new Promise(resolve => {
+          const requestId = ++inputSequence;
+          pendingInput = { id, requestId, resolve };
+          self.postMessage({ type: "input", id, requestId });
+        });
+      };
+      if (data.type === "run") {
+        result = interactiveInput
+          ? await runner.run_interactive.callPromising(data.source, data.language, requestInput, emit, flush)
+          : runner.run_interactive(data.source, data.language, requestInput, emit, flush);
+      } else result = runner.translate(data.source, data.language, emit, flush);
       const value = result.toJs({ dict_converter: Object.fromEntries });
       flush();
       self.postMessage({ type: "result", id, ...value });
     } finally {
       flush();
       if (result) result.destroy();
+      pendingInput = null;
       busy = false;
     }
   } catch (error) {
