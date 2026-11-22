@@ -5,6 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const { hostFixture } = require('./host-fixture.cjs');
+const { createOutputView } = require('../output-view.cjs');
 const root = path.resolve(__dirname, '..');
 
 test('RTL editor renders, highlights, edits, saves, undoes, and resolves external changes', { timeout: 90000 }, async () => {
@@ -133,5 +134,95 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
   } finally {
     await browser?.close();
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Balkh Output right-aligns RTL prompts, keeps mixed text literal, toggles and scrolls', { timeout: 60000 }, async () => {
+  let html;
+  let receiver;
+  let browser;
+  let output;
+  let clipboard;
+  const commands = [];
+  const server = http.createServer((req, res) => {
+    if (req.url === '/favicon.ico') { res.statusCode = 204; return res.end(); }
+    if (req.url === '/') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); return res.end(html); }
+    const filename = path.basename(req.url);
+    if (!['output.js', 'output.css'].includes(filename)) { res.statusCode = 404; return res.end(); }
+    res.setHeader('Content-Type', filename.endsWith('.js') ? 'text/javascript' : 'text/css');
+    res.end(fs.readFileSync(path.join(root, 'dist', filename)));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    browser = await chromium.launch({ channel: process.env.BALKH_BROWSER || 'msedge', headless: true });
+    const page = await browser.newPage({ viewport: { width: 900, height: 350 } });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    let provider;
+    output = createOutputView({
+      Uri: { joinPath: (base, ...parts) => ({ path: [base.path, ...parts].join('/') }) },
+      window: {
+        registerWebviewViewProvider(_id, value) { provider = value; return { dispose() {} }; },
+        createOutputChannel: () => ({ append() {}, clear() {}, dispose() {} }),
+      },
+      commands: { executeCommand: async command => commands.push(command) },
+      env: { clipboard: { writeText: async text => { clipboard = text; } } },
+    }, {
+      extensionUri: { path: '' }, workspaceState: { get: (_key, fallback) => fallback, update: async () => {} },
+    });
+    const view = { onDidDispose() {}, webview: {
+      cspSource: baseUrl,
+      asWebviewUri: value => ({ toString: () => `${baseUrl}/${path.basename(value.path)}` }),
+      onDidReceiveMessage(fn) { receiver = fn; return { dispose() {} }; },
+      postMessage: message => page.evaluate(data => window.postMessage(data, '*'), message),
+    } };
+    provider.resolveWebviewView(view);
+    html = view.webview.html;
+    await page.exposeFunction('outputMessage', message => receiver(message));
+    await page.addInitScript(() => { window.acquireVsCodeApi = () => ({ postMessage: message => window.outputMessage(message) }); });
+    output.append('حدس شما: ');
+    output.setRunning(true);
+    await page.goto(baseUrl);
+    await page.waitForFunction(() => document.getElementById('output').textContent === 'حدس شما: ');
+    const bounds = () => page.locator('#output').evaluate(pre => {
+      const range = document.createRange(); range.selectNodeContents(pre);
+      const text = range.getBoundingClientRect(); const row = pre.getBoundingClientRect();
+      return { left: text.left - row.left, right: row.right - text.right, align: getComputedStyle(pre).textAlign };
+    });
+    assert.ok((await bounds()).right < 3, 'Dari input prompt must start at the right edge');
+    const literal = '۷\nEnglish (Sara, English)\n<img src=x onerror="alert(1)">\nسلام 😀';
+    output.append(literal);
+    await page.waitForFunction(text => document.getElementById('output').textContent.endsWith(text), literal);
+    assert.equal(await page.locator('#output img').count(), 0, 'program output must never become HTML');
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    assert.equal(clipboard, 'حدس شما: ' + literal);
+    await page.getByRole('button', { name: 'Switch to LTR', exact: true }).click();
+    await page.waitForSelector('#scroll[dir="ltr"]');
+    assert.equal((await bounds()).align, 'left');
+    assert.ok((await bounds()).left < 3);
+    assert.equal(await page.locator('#output').textContent(), 'حدس شما: ' + literal);
+    await page.getByRole('button', { name: 'Switch to RTL', exact: true }).click();
+    await page.waitForSelector('#scroll[dir="rtl"]');
+    output.append('\n' + 'سطر جدید\n'.repeat(200));
+    await page.waitForFunction(() => document.getElementById('scroll').scrollTop > 100);
+    await page.locator('#scroll').evaluate(element => { element.scrollTop = 0; });
+    output.append('پایان\n');
+    await page.waitForFunction(() => document.getElementById('output').textContent.endsWith('پایان\n'));
+    assert.equal(await page.locator('#scroll').evaluate(element => element.scrollTop), 0, 'new output must not interrupt reading earlier lines');
+    await page.locator('#scroll').evaluate(el => { el.scrollTop = 0; });
+    output.append('پایان\n');
+    await page.waitForFunction(() => document.getElementById('output').textContent.endsWith('پایان\n'));
+    assert.equal(await page.locator('#scroll').evaluate(el => el.scrollTop), 0, 'new output must not pull a reader away from earlier lines');
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    assert.ok(commands.includes('balkh.stopRun'));
+    await page.getByRole('button', { name: 'Clear', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('output').textContent === '');
+    assert.equal(await page.locator('#empty').isVisible(), true);
+    assert.deepEqual(errors, []);
+  } finally {
+    output?.dispose(); await browser?.close();
+    await new Promise(resolve => server.close(resolve));
   }
 });

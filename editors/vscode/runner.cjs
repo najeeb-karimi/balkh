@@ -34,7 +34,9 @@ async function runDocument(vscode, document, platform = process.platform, output
   python ||= platform === 'win32' ? 'python' : 'python3';
   const args = ['-u', '-m', 'balkh.cli', document.uri.fsPath];
   const options = { cwd, env: { PYTHONIOENCODING: 'utf-8' } };
-  if (!config.get('runInTerminal', false)) return output.run({ python, args, ...options });
+  if (!config.get('runInTerminal', false)) {
+    return output.run({ python, args: ['-u', path.join(__dirname, 'input_bridge.py'), document.uri.fsPath], ...options });
+  }
   const execution = new vscode.ProcessExecution(python, args, options);
   const task = new vscode.Task({ type: 'balkh', file: document.uri.toString() },
     folder || vscode.TaskScope.Global, `Run ${path.basename(document.uri.fsPath)}`, 'Balkh', execution, []);

@@ -10,7 +10,7 @@ Syntax highlighting and basic editing support for Balkh (`.blk`), including Dari
 - Distinguish complete Unicode identifiers from keywords embedded inside longer words.
 - Color function/class definitions and provide `#` comment toggling, bracket/quote pairing, native word selection, block indentation, and indentation-based folding.
 - Edit right-aligned source with the optional **Balkh RTL Editor**, including indentation from the right, syntax highlighting, find/replace, and an RTL/LTR toggle.
-- Run saved `.blk` programs in the **Balkh** Output channel with **Run Balkh File**, from the editor's Run menu, the RTL editor's toolbar, the Command Palette, or the file's Explorer context menu. Enable terminal mode for keyboard input.
+- Run saved `.blk` programs in a right-aligned **Balkh Output** panel with **Run Balkh File**, from the editor's Run menu, the RTL editor's toolbar, the Command Palette, or the file's Explorer context menu. Answer interactive input in native VS Code input boxes while keeping RTL output.
 
 <div dir="rtl" align="right">
 
@@ -42,10 +42,10 @@ cd editors/vscode
 npm ci --ignore-scripts
 npm test
 npm run package
-code --install-extension balkh-language-0.3.1.vsix
+code --install-extension balkh-language-0.5.0.vsix
 ```
 
-Alternatively, use **Extensions: Install from VSIX…** in VS Code and choose `editors/vscode/balkh-language-0.3.1.vsix` from the repository root. This file is created inside `editors/vscode/` by the `npm run package` command above; the filename includes the extension version (currently `0.3.1`).
+Alternatively, use **Extensions: Install from VSIX…** in VS Code and choose `editors/vscode/balkh-language-0.5.0.vsix` from the repository root. This file is created inside `editors/vscode/` by the `npm run package` command above; the filename includes the extension version (currently `0.5.0`).
 
 The installable VSIX contains the grammar, language configuration, RTL editor and its bundled assets, manifest, documentation, and licenses; development dependencies and tests are excluded.
 
@@ -62,9 +62,15 @@ python -m pip install -e .
 balkh examples/salam.blk
 ```
 
-Open a `.blk` file and choose **Run Balkh File** from the editor's Run menu or **Balkh: Run Balkh File** from the Command Palette. The RTL editor also has a **Run Balkh File** button. The command waits for pending RTL edits, saves the file, and runs the whole program as `python -u -m balkh.cli <file>`. By default, stdout and errors stream as UTF-8 into the **Balkh** channel in the **Output** panel, alongside the exit status. This uses the same kind of output display as Code Runner and avoids the integrated terminal's RTL rendering limitations. Use **Balkh: Stop Running Program** from the Command Palette or the editor's Stop icon to stop an Output run. Running requires a trusted workspace; this command does not provide a debugger.
+Open a `.blk` file and choose **Run Balkh File** from the editor's Run menu or **Balkh: Run Balkh File** from the Command Palette. The RTL editor also has a **Run Balkh File** button. The command waits for pending RTL edits, saves the file, and runs the whole program through the regular Balkh CLI. By default, stdout and errors stream as UTF-8 into the **Balkh Output** tab in the bottom panel, alongside the exit status. This dedicated view right-aligns text like the playground, including prompts without a newline; VS Code's standard Output channel does not expose text-alignment controls. English and mixed text keep their natural paragraph direction. Use the **RTL/LTR** button to switch alignment without changing the transcript. The choice is remembered for this workspace.
 
-Output channels cannot accept keyboard input. For programs that use `input`/`ورودی`, enable terminal mode in your workspace or user settings:
+The panel also offers **Copy**, **Clear**, and **Stop**. New output follows the bottom while you are already there; scrolling up lets you read earlier output without being pulled back down. To keep verbose runs responsive, the view retains the latest one million UTF-16 code units and shows a notice when older output is omitted. The ordinary **Output → Balkh** channel mirrors the unmodified stream for inspection. Program output is always rendered as literal text. Use **Balkh: Stop Running Program** from the Command Palette or the editor's Stop icon to stop a run as well. Running requires a trusted workspace; this command does not provide a debugger.
+
+When Python calls `input()`, `ورودی`, `ننوت`, or reads text from `sys.stdin`, a native VS Code input box shows the program's current prompt. Type one answer and press Enter. Empty answers, Unicode, whitespace, repeated prompts, and calls inside functions and loops are supported. Answers are echoed in Output; the program continues from the same read without restarting. No changes to the `.blk` file or the installed Balkh package are required.
+
+The input box has **End input (EOF)** and **Stop running program** buttons. EOF lasts for the rest of that run: `input()` raises `EOFError`, while `sys.stdin` readers can finish normally. Escape cancels the run. The Stop command also closes a pending input box, and a new run starts with fresh input. Output itself remains read-only; type your answer in the input box.
+
+Leave `balkh.runInTerminal` disabled (the default) to use these prompts. If you enabled it as a workaround for input in an older extension, set it back to `false` and reload VS Code after installing version `0.4.0` or newer. For programs that require raw/binary stdin, terminal control, or interactive subprocesses, enable terminal mode instead:
 
 ```json
 {
@@ -72,7 +78,7 @@ Output channels cannot accept keyboard input. For programs that use `input`/`و�
 }
 ```
 
-Terminal mode uses an interactive VS Code task terminal; its RTL rendering still depends on VS Code's terminal support. Use the terminal's trash button to stop a terminal run. Leave `balkh.runInTerminal` disabled for the default Output display.
+Terminal mode uses an interactive VS Code task terminal and native Python stdin; its RTL rendering still depends on VS Code's terminal support. Use the terminal's trash button to stop a terminal run.
 
 The runner first uses `balkh.pythonPath`, if configured, then searches the file's workspace folder for `.venv` or `venv` (`Scripts/python.exe` on Windows, `bin/python` elsewhere). It falls back to `python` on Windows or `python3` elsewhere. The working directory is the workspace folder, or the file's directory when no workspace folder is open. To choose a different interpreter, set its executable path without shell quotes or extra arguments:
 
@@ -95,7 +101,7 @@ The runner first uses `balkh.pythonPath`, if configured, then searches the file'
 }
 ```
 
-Merge these entries into existing objects if they are already configured. Code Runner follows its own save/selection settings and is designed for the standard text editor. Use **Run Balkh File** in the RTL editor or for workspace environment detection, with `balkh.runInTerminal` enabled when you need keyboard input. The Balkh action does not require Code Runner.
+Merge these entries into existing objects if they are already configured. Code Runner follows its own save/selection settings and is designed for the standard text editor. Its Output panel remains read-only and does not use Balkh's input boxes; use **Run Balkh File** for interactive programs with RTL output. To accept input with Code Runner, set `"code-runner.runInTerminal": true` and use its integrated terminal. The Balkh action detects workspace environments and does not require Code Runner.
 
 ## ↔️ Right-to-Left Text
 
@@ -129,13 +135,15 @@ VS Code's standard editor does not expose RTL line alignment through its support
 | **Balkh RTL Editor** is missing | Install version `0.2.0` or newer in the current profile, run **Developer: Reload Window**, then try **Reopen Editor With…** again. |
 | Source is still left-aligned | The standard editor remains left-aligned. Select **Balkh RTL Editor**; if it is already open, use **Switch to RTL**. |
 | The RTL editor cannot load | Reopen with **Text Editor** to continue editing. Rebuild with `npm run package` and reinstall the generated VSIX; packaging includes the required JavaScript, CSS, font, and tokenizer assets. |
-| The VSIX file is missing | Run `npm run package` inside `editors/vscode/`. The generated `balkh-language-0.3.1.vsix` is not tracked in Git. |
+| The VSIX file is missing | Run `npm run package` inside `editors/vscode/`. The generated `balkh-language-0.5.0.vsix` is not tracked in Git. |
 | `code` is not recognized in the terminal | Use **Extensions: Install from VSIX…** from VS Code's Command Palette and select the generated VSIX instead. |
 | `balkh` is not recognized in the terminal | Activate the Python environment where you installed Balkh, or run the interpreter installation command above. |
 | **Run Code** says “Code language not supported or defined” | This message comes from Code Runner. Add the mappings above, or choose **Run Balkh File** instead. |
 | Run cannot find Python or reports `No module named balkh` | Set `balkh.pythonPath` to the correct Python executable and install Balkh with that interpreter's `-m pip install -e .` from the repository root. Code Runner uses its separate executor settings. |
-| Dari/Pashto output is jumbled in the terminal | Disable `balkh.runInTerminal` to use the **Balkh** Output channel. |
-| A program using `input` exits with `EOFError` in Output mode | Enable `balkh.runInTerminal` so the program can read keyboard input. |
+| Dari/Pashto output is jumbled in the terminal | Disable `balkh.runInTerminal` to use the right-aligned **Balkh Output** view. |
+| Output is still left-aligned | Install version `0.5.0` or newer, reload VS Code, and use **Run Balkh File**. Read the dedicated **Balkh Output** tab and select **RTL**; the standard **Output** tab and Code Runner retain VS Code's alignment. |
+| Run Balkh File exits with `EOFError` before showing an input box | Install version `0.4.0` or newer and run **Developer: Reload Window**. Keep `balkh.runInTerminal` disabled to use native input boxes with Output. |
+| Code Runner says “Cannot edit in read-only editor” | Use **Run Balkh File** and its input box, or enable `code-runner.runInTerminal` and type in the terminal. |
 
 ## 🛠️ Development and Verification
 
@@ -149,7 +157,7 @@ npm run build
 
 Commit both the generator and generated JSON files. `npm run check` detects stale generated files, and packaging runs the tokenizer tests automatically. The main Python test suite also checks that the generated files match the language definitions.
 
-The tests use `vscode-textmate` and Oniguruma, including multi-line tokenizer state. They cover every current alias, Unicode boundaries, numeric literals, protected string/comment contents, continuations, f-string expressions, editing configuration, repository examples, document synchronization, conflict handling, and runner behavior, including interpreter selection, literal file arguments, saving before execution, split UTF-8 output, errors, and stopping execution.
+The tests use `vscode-textmate` and Oniguruma, including multi-line tokenizer state. They cover every current alias, Unicode boundaries, numeric literals, protected string/comment contents, continuations, f-string expressions, editing configuration, repository examples, document synchronization, conflict handling, and runner behavior. Real Python subprocess tests also cover interactive Unicode/empty input, partial stdin reads, EOF, diagnostics, cancellation, stopping a pending read, and unchanged terminal stdin. Python must be available; tests use the repository's `.venv` when present, then `python`/`python3`, or the executable set in `BALKH_PYTHON`.
 
 Run `npm run test:browser` to check the bundled RTL editor in a headless Microsoft Edge installation. Set `BALKH_BROWSER=chrome` to use an installed Google Chrome instead, or `BALKH_BROWSER=chromium` after installing Playwright's Chromium browser with `npx playwright install chromium`. For example, in PowerShell:
 
@@ -158,11 +166,11 @@ $env:BALKH_BROWSER = "chrome"
 npm run test:browser
 ```
 
-The browser test verifies right alignment, nested indentation, highlighting, direction toggling, editing, save, undo/redo messages, running after typing, and external-change conflicts. It is separate from `npm test` and the packaging checks.
+The browser tests verify editor right alignment, nested indentation, highlighting, direction toggling, editing, save, undo/redo messages, running after typing, and external-change conflicts. They also check right-aligned output prompts, literal mixed-language text, output direction toggling, scrolling, Copy, Clear, and Stop. They are separate from `npm test` and the packaging checks.
 
 For a development preview, run `npm run build` first, then launch VS Code with `--extensionDevelopmentPath` pointing to this directory. Rebuild after changes to `src/`, the grammar, or the language configuration so the RTL editor receives those changes. Repackage and reinstall the VSIX to update an installed copy. **Developer: Inspect Editor Tokens and Scopes** works in the standard editor; the root scope is `source.balkh`.
 
-To verify native document save/undo/redo, execution of the saved source in Output and terminal modes, and the Output Stop command, run the integration test in an isolated profile. After building and installing Balkh in the runner's Python environment, use this PowerShell command from the repository root:
+To verify native document save/undo/redo, execution in the Balkh Output view and terminal modes, native Unicode/empty input and cancellation, and the Stop command, run the integration test in an isolated profile. After building and installing Balkh in the runner's Python environment, use this PowerShell command from the repository root:
 
 ```powershell
 code . --extensionDevelopmentPath="$PWD/editors/vscode" `

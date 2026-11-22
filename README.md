@@ -139,10 +139,10 @@ Build and install the local syntax-highlighting extension:
 cd editors/vscode
 npm ci --ignore-scripts
 npm run package
-code --install-extension balkh-language-0.3.1.vsix
+code --install-extension balkh-language-0.5.0.vsix
 ```
 
-Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. It includes highlighting, indentation from the right, and an RTL/LTR toggle. Use **Run Balkh File** from the editor's Run menu or the RTL editor's toolbar to save and run the program in the **Balkh** Output channel. Enable `balkh.runInTerminal` for programs that need keyboard input. The runner detects workspace `.venv`/`venv` environments; set `balkh.pythonPath` to choose another interpreter. The extension also provides comment toggling, bracket/quote pairing, and indentation support for Dari, Pashto, and English blocks. See the [extension README](editors/vscode/README.md) for prerequisites, Code Runner compatibility, RTL editor details, tests, and development instructions.
+Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. It includes highlighting, indentation from the right, and an RTL/LTR toggle. Use **Run Balkh File** from the editor's Run menu or the RTL editor's toolbar to save and run the program in the right-aligned **Balkh Output** panel, with an RTL/LTR toggle and Copy, Clear, and Stop controls. Programs that request input open native VS Code input boxes, with answers echoed in Output; Enter submits, Escape stops, and an EOF button ends input. Keep `balkh.runInTerminal` disabled for this flow; enable it for terminal-specific programs. The runner detects workspace `.venv`/`venv` environments; set `balkh.pythonPath` to choose another interpreter. The extension also provides comment toggling, bracket/quote pairing, and indentation support for Dari, Pashto, and English blocks. See the [extension README](editors/vscode/README.md) for prerequisites, Code Runner compatibility, RTL editor details, tests, and development instructions.
 
 ## 🧪 Running Tests
 

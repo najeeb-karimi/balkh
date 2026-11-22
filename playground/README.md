@@ -45,7 +45,7 @@ Choose an example or write code, then select **Run** in the source toolbar along
 
 When a program calls `input()`, `ورودی`, or `ننوت`, its prompt appears in **Output** with an answer field. Type one answer and press Enter or **Send**; execution resumes from that point and the answer remains in the transcript. Empty answers are supported. The guessing game now asks for one guess at a time and responds before asking again.
 
-**End input** sends EOF: `input()` raises `EOFError`, while `sys.stdin` readers can finish normally. EOF lasts for the rest of that run. **Stop** also works while a program is waiting for an answer. A new run starts with fresh input, and UI-language changes preserve an answer being typed. Answers are not written to browser storage. The CLI keeps native Python stdin.
+**End input** sends EOF: `input()` raises `EOFError`, while `sys.stdin` readers can finish normally. EOF lasts for the rest of that run. **Stop** also works while a program is waiting for an answer. A new run starts with fresh input, and UI-language changes preserve an answer being typed. Answers are not written to browser storage. The CLI keeps native Python stdin; the [VS Code extension](../editors/vscode/README.md) offers a right-aligned Balkh Output panel with native input boxes, plus optional terminal mode.
 
 Each execution starts with fresh program variables and a fresh input stream. The worker's imported modules and virtual filesystem remain until the runtime is restarted. **Stop** terminates the Python worker and creates a new runtime, so it works even for an infinite loop without cross-origin isolation or special GitHub Pages headers. Restarting discards runtime files and module state while preserving the editor draft.
 

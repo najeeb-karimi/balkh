@@ -2,7 +2,7 @@
   "name": "balkh-language",
   "displayName": "Balkh Language",
   "description": "Balkh syntax highlighting, RTL editing, and program execution for Dari and Pashto (.blk).",
-  "version": "0.3.1",
+  "version": "0.5.0",
   "publisher": "balkh",
   "license": "MIT",
   "engines": {
@@ -22,6 +22,12 @@
     "afghanistan"
   ],
   "contributes": {
+    "viewsContainers": {
+      "panel": [{ "id": "balkh-output", "title": "Balkh Output", "icon": "assets/output.svg" }]
+    },
+    "views": {
+      "balkh-output": [{ "id": "balkh.output", "name": "Balkh Output", "type": "webview" }]
+    },
     "commands": [{
       "command": "balkh.runFile",
       "title": "Run Balkh File",
@@ -59,7 +65,7 @@
           "type": "boolean",
           "default": false,
           "scope": "resource",
-          "description": "Run in an interactive terminal instead of the Balkh Output channel. Enable for programs that read keyboard input. Terminal RTL rendering depends on VS Code's terminal support."
+          "description": "Run in a terminal instead of the right-aligned Balkh Output view with native input prompts. Use for programs that need terminal-specific or raw input behavior. Terminal RTL rendering depends on VS Code's terminal support."
         },
         "balkh.pythonPath": {
           "type": "string",

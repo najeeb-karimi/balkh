@@ -14,7 +14,7 @@ async function hostFixture(initial = 'چاپ("سلام")\r\n', baseUrl = 'http:/
   const errors = [];
   const handlers = new Map();
   const tasks = [];
-  const context = { extensionUri: { path: '' }, subscriptions: [] };
+  const context = { extensionUri: { path: '' }, subscriptions: [], workspaceState: { get: (_key, fallback) => fallback, update: async () => {} } };
   const uri = { scheme: 'file', path: '/example.blk', fsPath: '/example.blk', toString: () => 'file:///example.blk' };
   const document = {
     uri, version: 1, text: initial, saves: 0,
@@ -38,6 +38,7 @@ async function hostFixture(initial = 'چاپ("سلام")\r\n', baseUrl = 'http:/
     window: {
       tabGroups: { activeTabGroup: { activeTab: { input: { uri } } } },
       registerCustomEditorProvider: (id, value) => { provider = value; return { dispose() {} }; },
+      registerWebviewViewProvider: () => ({ dispose() {} }),
       showErrorMessage: (message) => errors.push(message),
     },
     commands: {

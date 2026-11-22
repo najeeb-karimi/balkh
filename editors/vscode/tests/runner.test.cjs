@@ -77,6 +77,7 @@ test('default Output mode keeps the interpreter, Unicode environment, and litera
   assert.equal(f.tasks.length, 0);
   assert.equal(f.document.saves, 1);
   assert.equal(command.python, 'python');
+  assert.equal(command.args[1], require('node:path').resolve(__dirname, '../input_bridge.py'));
   assert.equal(command.args.at(-1), f.document.uri.fsPath);
   assert.equal(command.env.PYTHONIOENCODING, 'utf-8');
 });

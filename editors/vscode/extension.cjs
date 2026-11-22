@@ -3,11 +3,13 @@ const { randomBytes } = require('node:crypto');
 const { replacement } = require('./sync.cjs');
 const { runDocument } = require('./runner.cjs');
 const { createOutputRunner } = require('./output-runner.cjs');
+const { createOutputView } = require('./output-view.cjs');
 
 function activate(context) {
   const editors = new Map();
-  const output = createOutputRunner(vscode);
-  context.subscriptions.push(output, vscode.commands.registerCommand('balkh.stopRun', () => output.stop()));
+  const outputView = createOutputView(vscode, context);
+  const output = createOutputRunner(vscode, undefined, () => outputView);
+  context.subscriptions.push(outputView, output, vscode.commands.registerCommand('balkh.stopRun', () => output.stop()));
   context.subscriptions.push(vscode.commands.registerCommand('balkh.runFile', async (uri) => {
     try {
       uri ||= vscode.window.tabGroups.activeTabGroup.activeTab?.input?.uri || vscode.window.activeTextEditor?.document.uri;
