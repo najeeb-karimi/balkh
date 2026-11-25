@@ -104,6 +104,11 @@ def test_digit_normalization_preserves_multiline_text():
     )
 
 
+def test_digits_in_identifiers_are_preserved_when_numbers_are_normalized():
+    source = "نام۱ = ۲e۳\nنوم٢ = نام۱ + ۱_۲۳۴\n"
+    assert transpile(source) == "نام۱ = 2e3\nنوم٢ = نام۱ + 1_234\n"
+
+
 def test_unicode_line_separators_inside_strings():
     source = 'x = "۱۲۳\u2028٤٥٦"; y = "۷۸۹"\nz = ۱۲۳\n'
     assert normalize_digits(source) == source.replace("z = ۱۲۳", "z = 123")

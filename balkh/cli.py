@@ -8,6 +8,7 @@ import tokenize
 
 from balkh import __version__
 from balkh.errors import format_error, format_file_error
+from balkh.preview import python_preview
 from balkh.translator import normalize_digits, reverse_transpile, transpile
 
 
@@ -131,8 +132,10 @@ def main(argv=None):
             translated_code = reverse_transpile(source_code, args.lang)
         else:
             translated_code = transpile(source_code)
-            if not args.py:
-                compiled_code = compile(translated_code, file_path, "exec")
+            compiled_code = compile(translated_code, file_path, "exec")
+            if args.py or args.to_py is not None:
+                translated_code = python_preview(translated_code)
+                compile(translated_code, file_path, "exec")
     except (tokenize.TokenError, SyntaxError, ValueError, OverflowError) as error:
         parser.exit(1, format_error(error, args.lang, sources, file_path))
 
@@ -159,10 +162,7 @@ def main(argv=None):
             parser.exit(1, format_file_error(output_path, "write", error, args.lang))
         return
 
-    if args.py:
-        print(translated_code.replace("\r\n", "\n"))
-        return
-    if args.to_blk is not None:
+    if args.py or args.to_blk is not None:
         # Let stdout apply platform newline conversion only once.
         sys.stdout.write(translated_code.replace("\r\n", "\n"))
         return

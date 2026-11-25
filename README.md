@@ -82,11 +82,15 @@ balkh salam.py --to-blk salam-pashto.blk --lang pashto
 balkh salam-pashto.blk
 ```
 
-`--lang` defaults to `dari` and selects the language for reverse translation and error messages. It also works when running files or starting the REPL. The translation modes (`--py`, `--to-py`, and `--to-blk`) are mutually exclusive. `--py` continues to display Python without saving it.
+`--lang` defaults to `dari` and selects the language for reverse translation and error messages. It also works when running files or starting the REPL. The translation modes (`--py`, `--to-py`, and `--to-blk`) are mutually exclusive. Use `--py` to see the generated Python in your terminal or `--to-py` to save it.
 
-Translation preserves strings, comments, numeric spellings, and formatting; exporting Balkh to Python converts native numeric literals to Python digits. Python keywords without a localized alias remain in English. Pashto output uses existing shared aliases where a separate Pashto spelling is not available yet.
+Both Python modes translate Balkh keywords, built-ins, numeric literals, and recognizable `balkh.stdlib` calls to standard Python. User-defined names, explicit import aliases, and string literals keep their spelling. Dynamic references to the bundled wrappers can still require the original imports.
 
-Saved files use UTF-8, with any encoding header updated to match. An explicitly named output file is replaced after translation succeeds; input and output must be different files. Neither export mode runs the source program.
+Lines that mix left-to-right English with right-to-left Dari or Pashto can look jumbled in terminals and editors, especially around punctuation and operators. Python reads the generated code in its stored order regardless of how it appears on screen.
+
+Translation to Balkh preserves strings, comments, numeric spellings, and formatting. Python keywords without a localized alias remain in English. Pashto output uses shared aliases where a separate Pashto spelling is unavailable.
+
+Saved files use UTF-8, with any encoding header updated to match. An explicitly named output file is replaced after translation succeeds. Input and output must be different files. Translation validates the source without running it.
 
 ## 📚 Localized Standard Library
 

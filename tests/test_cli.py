@@ -334,13 +334,40 @@ def test_localized_stdlib_example_and_python_export(tmp_path):
     exported = run_cli(source, "--to-py", output)
     assert exported.returncode == 0
     assert exported.stdout == exported.stderr == ""
+    shown = run_cli(source, "--py")
+    assert shown.returncode == 0, shown.stderr
+    assert shown.stdout == output.read_text(encoding="utf-8")
+    assert "balkh.stdlib" not in shown.stdout
+    assert "math.sqrt(81)" in shown.stdout
+    assert "datetime.timedelta(days=1)" in shown.stdout
     python = subprocess.run(
-        [sys.executable, str(output)], capture_output=True, encoding="utf-8",
+        [sys.executable, "-I", "-S", "-X", "utf8", str(output)], capture_output=True, encoding="utf-8",
         env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=10,
     )
     assert python.returncode == 0
     assert python.stdout == expected
     assert python.stderr == ""
+
+
+def test_python_modes_keep_names_strings_and_export_line_endings(tmp_path):
+    source = tmp_path / "source.blk"
+    source.write_bytes((
+        '# example\r\nاز balkh.stdlib وارد ریاضی بعنوان حساب\r\n'
+        'زبان۱ = "دری"\r\nاگر زبان۱ == "دری":\r\n'
+        '    چاپ(زبان۱, حساب.جذر(۸۱))  # روش\r\n'
+    ).encode("utf-8"))
+    output = tmp_path / "translated.py"
+    result = run_cli(source, "--to-py", output)
+    assert result.returncode == 0, result.stderr
+    code = output.read_bytes().decode("utf-8")
+    assert code == (
+        '# example\r\nimport math as حساب\r\n'
+        'زبان۱ = "دری"\r\nif زبان۱ == "دری":\r\n'
+        '    print(زبان۱, حساب.sqrt(81))  # روش\r\n'
+    )
+    shown = run_cli(source, "--py")
+    assert shown.returncode == 0, shown.stderr
+    assert shown.stdout == code.replace("\r\n", "\n")
 
 
 @pytest.mark.parametrize(
@@ -406,13 +433,14 @@ def test_system_exit_status_is_preserved(tmp_path):
     assert result.stdout == result.stderr == ""
 
 
-@pytest.mark.parametrize("flag", ["--to-py", "--to-blk"])
+@pytest.mark.parametrize("flag", ["--py", "--to-py", "--to-blk"])
 def test_translation_syntax_errors_use_selected_language(tmp_path, flag):
     path = tmp_path / "broken.py"
     path.write_text("if True\n", encoding="utf-8")
     output = tmp_path / "output.txt"
     output.write_text("keep this", encoding="utf-8")
-    result = run_cli(path, flag, output, "--lang", "pashto")
+    args = [flag] if flag == "--py" else [flag, output]
+    result = run_cli(path, *args, "--lang", "pashto")
     assert result.returncode == 1
     assert result.stdout == ""
     assert "د لیکنې تېروتنه" in result.stderr

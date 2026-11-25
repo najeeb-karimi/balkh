@@ -1,6 +1,6 @@
 # Localized Standard Library
 
-The optional `balkh.stdlib` package provides native names for common Python math, random, and date/time operations. It needs no extra dependencies. Import modules explicitly; the CLI, REPL, and exported Python use the same package.
+The optional `balkh.stdlib` package provides native names for common Python math, random, and date/time operations. It needs no extra dependencies. Import modules explicitly in Balkh programs and in the REPL.
 
 | Python library | Dari module | Pashto module |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ Import individual helpers or give modules your own names:
 چاپ(تقویم.قالب(تقویم.تاریخ(۲۰۲۴, ۲, ۲۹)))
 ```
 
-Run `balkh examples/stdlib.blk` for a complete mixed-language example. Export it with `balkh examples/stdlib.blk --to-py stdlib-demo.py`; running the generated Python also requires Balkh to be installed.
+Run `balkh examples/stdlib.blk` for a complete mixed-language example. Export it with `balkh examples/stdlib.blk --to-py stdlib-demo.py` to use `math`, `random`, and `datetime` directly in the generated file. Use `--py` to display the same conversion. Explicit import aliases are preserved. Dynamic references to the wrappers can still require Balkh.
 
 ## Math
 

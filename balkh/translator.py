@@ -32,11 +32,17 @@ def normalize_digits(code: str) -> str:
     for name in ("FSTRING_MIDDLE", "TSTRING_MIDDLE"):
         if hasattr(tokenize, name):
             preserved_types.add(getattr(tokenize, name))
-    return _rewrite_tokens(
-        code,
-        lambda token: token.string
-        if token.type in preserved_types else token.string.translate(table),
-    )
+    def normalize(token):
+        if token.type in preserved_types:
+            return token.string
+        if token.type == tokenize.NAME and token.string.isidentifier():
+            # Older tokenizers can split "۱e۲" into a digit and a NAME suffix.
+            column = token.start[1]
+            if not column or not token.line[column - 1].isdecimal():
+                return token.string
+        return token.string.translate(table)
+
+    return _rewrite_tokens(code, normalize)
 
 
 def _translate_names(source, mapping):
