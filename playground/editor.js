@@ -14,6 +14,7 @@ import { loadWASM, OnigScanner, OnigString } from 'vscode-oniguruma';
 import grammarDefinition from '../editors/vscode/syntaxes/balkh.tmLanguage.json';
 import configuration from '../editors/vscode/language-configuration.json';
 import { tokenClass } from '../editors/vscode/src/tokens.cjs';
+import { createScrollbars } from './scrollbars.js';
 
 self.MonacoEnvironment = { getWorker: () => new Worker(new URL('./editor.worker.js', document.baseURI)) };
 
@@ -49,24 +50,28 @@ async function setupLanguage() {
 
 // Monaco keeps its own layout and hit testing intact. RTL chrome is rendered
 // beside the editor and synchronized through public viewport/scroll APIs.
-function directionalChrome(editor, container, host, gutter, scroll, spacer) {
+function directionalChrome(editor, container, host, gutter) {
   let rtl = false;
   let frame = 0;
   let dragAnchor = null;
-  let syncedScrollTop = 0;
   const numberRows = new Map();
   const listeners = new AbortController();
   const { signal } = listeners;
   const schedule = () => { if (!frame) frame = requestAnimationFrame(render); };
-  function syncScroll() {
-    if (!rtl) return;
-    const height = `${editor.getScrollHeight()}px`;
-    if (spacer.style.height !== height) spacer.style.height = height;
-    if (Math.abs(scroll.scrollTop - editor.getScrollTop()) > .5) scroll.scrollTop = editor.getScrollTop();
-    // Native scroll events arrive asynchronously. Remember the browser's rounded
-    // value so our own updates cannot cancel Monaco's next animation frame.
-    syncedScrollTop = scroll.scrollTop;
-  }
+  const scrollbars = createScrollbars(container, {
+    read() {
+      const { height, contentWidth } = editor.getLayoutInfo();
+      return {
+        vertical: { viewport: height, content: editor.getScrollHeight(), position: editor.getScrollTop() },
+        horizontal: { viewport: contentWidth, content: editor.getScrollWidth(), position: editor.getScrollLeft() },
+      };
+    },
+    scrollTo(axis, position) {
+      if (axis === 'vertical') editor.setScrollTop(position, monaco.editor.ScrollType.Immediate);
+      else editor.setScrollLeft(position, monaco.editor.ScrollType.Immediate);
+    },
+    onWheel: forwardWheel,
+  });
   function lineAt(y) {
     const bounds = host.getBoundingClientRect();
     const x = bounds.left + editor.getLayoutInfo().contentLeft + 5;
@@ -75,6 +80,7 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
   function render() {
     cancelAnimationFrame(frame);
     frame = 0;
+    scrollbars.update();
     if (!rtl) return;
     editor.render();
     const model = editor.getModel();
@@ -87,7 +93,6 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
       editor.layout();
     }
     gutter.style.font = `${font.fontSize}px/${lineHeight}px ${font.fontFamily}`;
-    syncScroll();
     const visible = new Set();
     for (const range of editor.getVisibleRanges()) {
       for (let line = range.startLineNumber; line <= range.endLineNumber; line++) visible.add(line);
@@ -128,21 +133,15 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
     const to = target < anchor ? [target, 1] : end(target);
     editor.setSelection(new monaco.Selection(...from, ...to));
   }
-  scroll.addEventListener('scroll', () => {
-    if (rtl && Math.abs(scroll.scrollTop - syncedScrollTop) > .5) {
-      editor.setScrollTop(scroll.scrollTop, monaco.editor.ScrollType.Immediate);
-      syncScroll();
-    }
-  }, { signal });
-  const forwardWheel = event => {
+  function forwardWheel(event) {
     if (event.ctrlKey) return;
     // Use the same wheel normalization, accumulated destination and animation
-    // over the code, numbers and scrollbar; native thumb dragging stays direct.
+    // over the code, numbers and scrollbar. Thumb dragging stays immediate.
     const forwarded = new WheelEvent('wheel', event);
     editor.getDomNode().dispatchEvent(forwarded);
     if (forwarded.defaultPrevented) event.preventDefault();
-  };
-  for (const surface of [gutter, scroll]) surface.addEventListener('wheel', forwardWheel, { passive: false, signal });
+  }
+  gutter.addEventListener('wheel', forwardWheel, { passive: false, signal });
   gutter.addEventListener('pointerdown', event => {
     const line = Number(event.target.dataset.line);
     if (event.button !== 0 || !line) return;
@@ -167,7 +166,7 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
   const subscriptions = [
     // Move the numbers in the same frame as Monaco's text. Scheduling another
     // animation frame here makes the gutter visibly trail smooth scrolling.
-    editor.onDidScrollChange(() => { syncScroll(); render(); }), editor.onDidLayoutChange(schedule),
+    editor.onDidScrollChange(render), editor.onDidLayoutChange(schedule),
     editor.onDidChangeModelContent(schedule), editor.onDidChangeCursorPosition(schedule),
     editor.onDidChangeHiddenAreas(schedule), editor.onDidContentSizeChange(schedule),
     editor.onDidChangeConfiguration(schedule),
@@ -175,6 +174,7 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
   editor.onDidDispose(() => {
     cancelAnimationFrame(frame);
     listeners.abort();
+    scrollbars.dispose();
     for (const subscription of subscriptions) subscription.dispose();
   });
   return {
@@ -182,11 +182,9 @@ function directionalChrome(editor, container, host, gutter, scroll, spacer) {
       rtl = value;
       const scrollTop = editor.getScrollTop();
       container.dataset.editorDirection = rtl ? 'rtl' : 'ltr';
-      gutter.hidden = scroll.hidden = !rtl;
+      gutter.hidden = !rtl;
       editor.updateOptions({
         lineNumbers: rtl ? 'off' : 'on',
-        overviewRulerLanes: rtl ? 0 : 3, hideCursorInOverviewRuler: rtl,
-        scrollbar: { vertical: rtl ? 'hidden' : 'visible', verticalScrollbarSize: rtl ? 0 : 12, verticalSliderSize: 8 },
       });
       editor.layout();
       editor.setScrollTop(scrollTop);
@@ -217,8 +215,6 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
       'editor.lineHighlightBackground': '#16243a',
       'focusBorder': '#f48fb1',
       'editorIndentGuide.background1': '#25354a', 'editorIndentGuide.activeBackground1': '#4a6079',
-      'scrollbarSlider.background': '#72869e88', 'scrollbarSlider.hoverBackground': '#a4bacfcc',
-      'scrollbarSlider.activeBackground': '#a4bacf',
     },
   });
   container.replaceChildren();
@@ -227,12 +223,7 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
   const gutter = document.createElement('div');
   gutter.className = 'editor-side-gutter';
   gutter.setAttribute('aria-hidden', 'true');
-  const scroll = document.createElement('div');
-  scroll.className = 'editor-side-scroll';
-  scroll.setAttribute('aria-hidden', 'true');
-  const spacer = document.createElement('div');
-  scroll.append(spacer);
-  container.append(host, gutter, scroll);
+  container.append(host, gutter);
   const model = monaco.editor.createModel(source, 'balkh');
   const editor = monaco.editor.create(host, {
     model, theme: 'balkh-playground', automaticLayout: true, fontSize: 16, lineHeight: 29,
@@ -245,14 +236,15 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
     // Keep the RTL line origin inside the viewport. With unwrapped long lines,
     // Monaco anchors every RTL line to its wider horizontal content canvas.
     wordWrap: 'on', wrappingIndent: 'same',
-    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8, useShadows: false },
+    overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
+    scrollbar: { vertical: 'hidden', horizontal: 'hidden', verticalScrollbarSize: 0, horizontalScrollbarSize: 0, useShadows: false },
   });
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const updateMotion = () => editor.updateOptions({ smoothScrolling: !reducedMotion.matches });
   updateMotion();
   reducedMotion.addEventListener('change', updateMotion);
   editor.onDidDispose(() => reducedMotion.removeEventListener('change', updateMotion));
-  const chrome = directionalChrome(editor, container, host, gutter, scroll, spacer);
+  const chrome = directionalChrome(editor, container, host, gutter);
   chrome.setDirection(rtl);
   const decorations = editor.createDecorationsCollection();
   const align = () => decorations.set([{ range: model.getFullModelRange(), options: {

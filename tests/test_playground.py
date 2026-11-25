@@ -14,13 +14,10 @@ runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
 
 
-def execute(source, language="dari", stdin="", translate=False):
+def execute(source, language="dari", stdin=""):
     events = []
     emit = lambda stream, text: events.append((stream, text))
-    result = (
-        runner.translate(source, language, emit) if translate
-        else runner.run(source, language, stdin, emit)
-    )
+    result = runner.run(source, language, stdin, emit)
     return result, {
         stream: "".join(text for name, text in events if name == stream)
         for stream in ("stdout", "stderr")
@@ -32,7 +29,6 @@ def test_native_programs_and_digits(keyword, language):
     result, output = execute(f'{keyword}("سلام ۱۲۳", ۲ + ۳)\n', language)
     assert result["ok"]
     assert output == {"stdout": "سلام ۱۲۳ 5\n", "stderr": ""}
-    assert result["python"] == 'print("سلام ۱۲۳", 2 + 3)\n'
 
 
 def test_multiline_stdin_prompts_and_eof():
@@ -152,16 +148,6 @@ def test_invalid_programs_have_localized_diagnostics(source, kind):
     assert "خطای نگارشی" in output["stderr"]
     assert kind in output["stderr"]
     assert output["stdout"] == ""
-
-
-def test_python_preview_validates_without_running():
-    result, output = execute('چاپ("never printed")\nخطا_بده RuntimeError("never raised")\n', translate=True)
-    assert result["ok"]
-    assert result["python"].startswith('print("never printed")')
-    assert output == {"stdout": "", "stderr": ""}
-    result, output = execute("اگر درست\n", translate=True)
-    assert not result["ok"]
-    assert "SyntaxError" in output["stderr"]
 
 
 def test_each_run_has_fresh_globals_and_input():

@@ -1,10 +1,23 @@
 import { createEditor } from './editor.js';
 import { applyLanguage, setLiteralText, setText, t } from './i18n.js';
+import { attachNativeScrollbars } from './scrollbars.js';
 
 const $ = id => document.getElementById(id);
+const workbench = $('workbench');
+const workspace = workbench.querySelector('.workspace');
+const sourcePanel = workspace.querySelector('.source-panel');
+const resultsPanel = $('results-panel');
+const resultsResizer = $('results-resizer');
+const filenameButton = $('file-name');
+const filenameEditor = $('file-name-editor');
+const filenameInput = $('file-name-input');
+const sourceControls = sourcePanel.querySelectorAll(':scope > :not(#editor)');
+const resultsControls = resultsPanel.querySelectorAll(':scope > :not(#result-viewport)');
 const STORAGE_KEY = 'balkh.playground.v1';
 const UI_LANGUAGE_KEY = 'balkh.playground.ui-language';
 const MAX_OUTPUT = 200_000;
+const MAX_FILENAME_LENGTH = 32;
+const FILE_EXTENSION = '.blk';
 const fallbackSource = '# سلام به بلخ!\nچاپ("سلام دنیا!")\nچاپول("سلام نړۍ!")\n';
 let saved;
 try {
@@ -13,7 +26,9 @@ try {
 } catch { /* Private browsing, unavailable storage, and old data must not block editing. */ }
 let source = saved?.source ?? fallbackSource;
 let rtl = saved?.rtl !== false;
-let filename = typeof saved?.filename === 'string' && /^[\w.-]+\.blk$/.test(saved.filename) ? saved.filename : 'salam.blk';
+const savedFilename = normalizeFilename(saved?.filename);
+let filename = savedFilename ?? 'salam.blk';
+let filenameCustomized = savedFilename !== null && saved?.filenameCustomized === true;
 let editor;
 let samples = [];
 let selectedExample = '';
@@ -21,7 +36,7 @@ const exampleNames = { salam: 'exampleHello', stdlib: 'exampleStdlib', bazi: 'ex
 let worker;
 let generation = 0;
 let sequence = 0;
-let active = null;
+let activeRunId = null;
 let inputRequest = null;
 let interactiveInput = true;
 let ready = false;
@@ -29,18 +44,79 @@ let loadingTimer;
 let saveTimer;
 let outputLength = 0;
 let outputTruncated = false;
-let pythonSource = null;
-let selectedView = 'output';
 let replacingSource = false;
 let userEdited = false;
-if (saved?.language === 'pashto') $('language').value = 'pashto';
+let isFullscreen = false;
+let pageScrollBeforeFullscreen = 0;
+let resultsMaximized = false;
+let resultsHeightRatio = null;
+let resultsDrag = null;
+let diagnosticsLanguage = saved?.language === 'pashto' ? 'pashto' : 'dari';
+
 let uiLanguage = 'en';
 try { uiLanguage = localStorage.getItem(UI_LANGUAGE_KEY) || 'en'; } catch { /* English works without storage. */ }
 
 function changeInterfaceLanguage(language) {
   uiLanguage = applyLanguage(language);
   editor?.setAriaLabel(t('sourceEditor'));
+  updateErrorLanguageChoice();
+  updateFilenameTooltip();
 }
+
+function updateErrorLanguageChoice() {
+  $('language').value = diagnosticsLanguage;
+  setText('error-language-name', diagnosticsLanguage);
+  $('language').setAttribute('aria-label', `${t('errors')}: ${t(diagnosticsLanguage)}`);
+  for (const choice of document.querySelectorAll('[data-error-language]')) {
+    choice.setAttribute('aria-selected', String(choice.dataset.errorLanguage === diagnosticsLanguage));
+  }
+}
+
+function closeErrorLanguageMenu(returnFocus = false) {
+  $('error-language-menu').hidden = true;
+  $('language').setAttribute('aria-expanded', 'false');
+  if (returnFocus) $('language').focus();
+}
+
+function openErrorLanguageMenu(last = false) {
+  if ($('language').disabled) return;
+  $('error-language-menu').hidden = false;
+  $('language').setAttribute('aria-expanded', 'true');
+  const choices = [...document.querySelectorAll('[data-error-language]')];
+  (last ? choices.at(-1) : choices.find(choice => choice.getAttribute('aria-selected') === 'true'))?.focus();
+}
+
+$('language').addEventListener('click', () => {
+  if ($('error-language-menu').hidden) openErrorLanguageMenu();
+  else closeErrorLanguageMenu();
+});
+for (const choice of document.querySelectorAll('[data-error-language]')) choice.addEventListener('click', () => {
+  if ($('language').disabled) return;
+  diagnosticsLanguage = choice.dataset.errorLanguage;
+  updateErrorLanguageChoice();
+  closeErrorLanguageMenu(true);
+  persist();
+});
+document.addEventListener('click', event => {
+  if (!event.target.closest('.error-language-picker')) closeErrorLanguageMenu();
+});
+document.querySelector('.error-language-picker').addEventListener('focusout', event => {
+  if (!event.currentTarget.contains(event.relatedTarget)) closeErrorLanguageMenu();
+});
+document.querySelector('.error-language-picker').addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('error-language-menu').hidden) {
+    closeErrorLanguageMenu(true);
+    event.preventDefault();
+  }
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    if ($('error-language-menu').hidden) { openErrorLanguageMenu(event.key === 'ArrowUp' || event.key === 'End'); return; }
+    const choices = [...document.querySelectorAll('[data-error-language]')];
+    const index = choices.indexOf(document.activeElement);
+    choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 :
+      (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus();
+  }
+});
 
 function closeLanguageMenu(returnFocus = false) {
   $('ui-language-menu').hidden = true;
@@ -104,13 +180,12 @@ function updateExampleChoice() {
 function chooseExample(sample) {
   if (!editor) return;
   replacingSource = true;
-  filename = `${sample.id.replace(/[^\w.-]/g, '_')}.blk`;
+  setFilename(`${sample.id.replace(/[^\w.-]/g, '_')}.blk`);
   editor.setValue(sample.source);
   replacingSource = false;
   source = sample.source;
   selectedExample = sample.id;
   updateExampleChoice();
-  $('file-name').textContent = filename;
   closeExamplesMenu(true);
   persist();
 }
@@ -140,10 +215,66 @@ document.querySelector('.example-picker').addEventListener('keydown', event => {
   }
 });
 
+function normalizeFilename(value) {
+  if (typeof value !== 'string') return null;
+  const stem = value.trim().replace(/\.blk$/i, '').trim();
+  if (!stem || stem === '.' || stem === '..' || /[<>:"\/\\|?*\x00-\x1f\x7f]/.test(stem)) return null;
+  // Avoid names that Windows reserves even when an extension is present.
+  if (/^(?:con|prn|aux|nul|(?:com|lpt)[1-9¹²³])(?:\.|$)/i.test(stem)) return null;
+  return stem + FILE_EXTENSION;
+}
+
+function updateFilenameTooltip() {
+  const hint = t('renameFileTitle');
+  const truncated = !isFullscreen && filenameButton.scrollWidth > filenameButton.clientWidth;
+  const title = truncated ? `${filename}\n${hint}` : hint;
+  if (filenameButton.title !== title) filenameButton.title = title;
+}
+
+function setFilename(name, customized = false) {
+  filename = name;
+  filenameCustomized = customized;
+  filenameButton.textContent = name;
+  updateFilenameTooltip();
+}
+
+function startRename() {
+  if (!filenameEditor.hidden) return;
+  filenameInput.defaultValue = filename.slice(0, -FILE_EXTENSION.length);
+  filenameInput.value = filenameInput.defaultValue;
+  filenameInput.setCustomValidity('');
+  filenameButton.hidden = true;
+  filenameEditor.hidden = false;
+  filenameInput.focus({ preventScroll: true });
+  filenameInput.select();
+}
+
+function finishRename({ commit = false, returnFocus = false } = {}) {
+  if (filenameEditor.hidden) return;
+  if (commit && filenameInput.value !== filenameInput.defaultValue) {
+    const name = normalizeFilename(filenameInput.value);
+    const tooLong = name !== null && [...name].length > MAX_FILENAME_LENGTH;
+    const valid = name !== null && !tooLong;
+    if (!valid && returnFocus) {
+      const message = tooLong ? t('filenameTooLong').replace('{max}', MAX_FILENAME_LENGTH) : t('invalidFileName');
+      filenameInput.setCustomValidity(message);
+      filenameInput.reportValidity();
+      return;
+    }
+    if (valid && name !== filename) {
+      setFilename(name, true);
+      saveNow();
+    }
+  }
+  filenameEditor.hidden = true;
+  filenameButton.hidden = false;
+  if (returnFocus) filenameButton.focus({ preventScroll: true });
+}
+
 function saveNow() {
   clearTimeout(saveTimer);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, source, rtl, language: $('language').value, filename }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, source, rtl, language: diagnosticsLanguage, filename, filenameCustomized }));
     setText('save-status', 'saved');
   } catch { setText('save-status', 'saveUnavailable'); }
 }
@@ -157,28 +288,23 @@ function sourceChanged(value) {
   source = value;
   if (!replacingSource) {
     userEdited = true;
-    filename = 'program.blk';
+    if (!filenameCustomized && filename !== 'program.blk') setFilename('program.blk');
     selectedExample = '';
     updateExampleChoice();
-    $('file-name').textContent = filename;
-  }
-  if (pythonSource !== source) {
-    pythonSource = null;
-    if (selectedView === 'python') setText('python', 'previewStale');
   }
   setText('save-status', 'saving');
   persist();
 }
 
 function syncControls() {
-  $('run').disabled = !ready || !!active || !editor;
-  $('stop').disabled = !active;
+  const running = activeRunId !== null;
+  $('run').disabled = !ready || running || !editor;
+  $('stop').disabled = !running;
   $('download').disabled = !editor;
   $('direction').disabled = !editor;
   $('examples').disabled = !editor || samples.length === 0;
-  $('language').disabled = !!active;
-  $('python-tab').setAttribute('aria-disabled', String(!ready || !!active || !editor));
-  const running = active?.type === 'run';
+  $('language').disabled = running;
+  if (running) closeErrorLanguageMenu();
   setText('run-label', running ? 'running' : 'run');
   $('run-icon').classList.toggle('is-spinning', running);
   $('run-icon').firstElementChild.setAttribute('href', running ? '#icon-loading' : '#icon-play');
@@ -186,7 +312,100 @@ function syncControls() {
 
 function runtimeStatus(key, state) {
   setText('runtime-status', key);
+  $('runtime-bar').classList.toggle('runtime-notice', key === 'runtimeLoading' || key === 'runtimeFailed');
   $('runtime-dot').className = `runtime-dot ${state || ''}`;
+}
+
+function panelControlsHeight(panel, controls) {
+  return [...controls].reduce((height, control) => height + control.offsetHeight, panel.offsetHeight - panel.clientHeight);
+}
+
+function resizeResults(requestedHeight) {
+  if (resultsResizer.hidden) return;
+  const workspaceHeight = workspace.clientHeight;
+  if (!workspaceHeight) return;
+
+  const availableHeight = Math.max(0, workspaceHeight - resultsResizer.offsetHeight);
+  const sourceControlsHeight = panelControlsHeight(sourcePanel, sourceControls);
+  const resultsControlsHeight = panelControlsHeight(resultsPanel, resultsControls);
+  const contentHeight = Math.max(0, availableHeight - sourceControlsHeight - resultsControlsHeight);
+  // Reserve some space for both panes' content, even in a short browser window.
+  const minContentHeight = Math.min(48, Math.floor(contentHeight / 2));
+  const minHeight = Math.min(availableHeight, resultsControlsHeight + minContentHeight);
+  const maxHeight = Math.max(minHeight, availableHeight - sourceControlsHeight - minContentHeight);
+  const preferredHeight = requestedHeight ?? workspaceHeight * (
+    resultsHeightRatio ?? parseFloat(getComputedStyle(workspace).getPropertyValue('--default-results-height')) / 100
+  );
+  const height = Math.round(Math.max(minHeight, Math.min(maxHeight, preferredHeight)));
+  if (requestedHeight !== undefined) resultsHeightRatio = height / workspaceHeight;
+
+  workspace.style.setProperty('--results-height', `${height}px`);
+  const percent = pixels => String(Math.round(100 * pixels / workspaceHeight));
+  resultsResizer.setAttribute('aria-valuemin', percent(minHeight));
+  resultsResizer.setAttribute('aria-valuemax', percent(maxHeight));
+  resultsResizer.setAttribute('aria-valuenow', percent(height));
+}
+
+function syncResultsLayout() {
+  const fullscreenResults = isFullscreen && !resultsPanel.hidden;
+  const split = fullscreenResults && !resultsMaximized;
+  sourcePanel.hidden = resultsMaximized;
+  resultsResizer.hidden = !split;
+  workspace.classList.toggle('results-open', split);
+  workspace.classList.toggle('results-maximized', resultsMaximized);
+  const button = $('maximize-results');
+  const key = resultsMaximized ? 'restoreResults' : 'maximizeResults';
+  button.hidden = !fullscreenResults;
+  setText('maximize-results-label', resultsMaximized ? 'restore' : 'maximize');
+  button.dataset.i18nTitle = key;
+  button.dataset.i18nAriaLabel = key;
+  button.title = t(key);
+  button.setAttribute('aria-label', button.title);
+  button.querySelector('use').setAttribute('href', resultsMaximized ? '#icon-collapse' : '#icon-expand');
+  if (split) resizeResults();
+  else if (resultsDrag) {
+    if (resultsResizer.hasPointerCapture(resultsDrag.id)) resultsResizer.releasePointerCapture(resultsDrag.id);
+    resultsDrag = null;
+  }
+}
+
+function setResultsMaximized(maximized) {
+  resultsMaximized = maximized;
+  syncResultsLayout();
+}
+
+function setResultsOpen(open) {
+  const moveFocus = !open && (resultsPanel.contains(document.activeElement) || document.activeElement === resultsResizer);
+  resultsPanel.hidden = !open;
+  setResultsMaximized(isFullscreen && open && resultsMaximized);
+  $('toggle-results').setAttribute('aria-expanded', String(open));
+  if (moveFocus) $('toggle-results').focus({ preventScroll: true });
+  if (open && inputRequest) {
+    $('stdin').focus({ preventScroll: true });
+    $('input-form').scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function setFullscreenMode(enabled) {
+  if (enabled === isFullscreen) return;
+  if (enabled) pageScrollBeforeFullscreen = window.scrollY;
+  isFullscreen = enabled;
+  workbench.classList.toggle('is-fullscreen', enabled);
+  document.body.classList.toggle('workspace-fullscreen', enabled);
+  const button = $('fullscreen');
+  setText('fullscreen-label', enabled ? 'exitFullscreen' : 'fullscreen');
+  const titleKey = enabled ? 'exitFullscreenTitle' : 'fullscreenTitle';
+  button.dataset.i18nTitle = titleKey;
+  button.title = t(titleKey);
+  button.querySelector('use').setAttribute('href', enabled ? '#icon-collapse' : '#icon-expand');
+  $('toggle-results').hidden = !enabled;
+  setResultsOpen(!enabled || !!inputRequest);
+  updateFilenameTooltip();
+  if (enabled && !inputRequest && editor) editor.focus();
+  if (!enabled) {
+    if (!inputRequest) button.focus({ preventScroll: true });
+    window.scrollTo(0, pageScrollBeforeFullscreen);
+  }
 }
 
 function closeInput() {
@@ -196,28 +415,24 @@ function closeInput() {
 }
 
 function requestInput(message) {
-  if (active?.type !== 'run' || !Number.isSafeInteger(message.requestId)) return;
-  inputRequest = { id: active.id, requestId: message.requestId };
-  selectView('output', false);
+  if (activeRunId === null || !Number.isSafeInteger(message.requestId)) return;
+  inputRequest = { id: activeRunId, requestId: message.requestId };
   $('output-placeholder').hidden = true;
   $('output').hidden = false;
   $('input-form').hidden = false;
   runtimeStatus('waitingInput', 'waiting');
   setText('run-status', 'waitingInput');
-  setText('result-label', 'waitingInput');
-  $('stdin').focus({ preventScroll: true });
-  $('input-form').scrollIntoView({ block: 'nearest' });
+  setResultsOpen(true);
 }
 
 function sendInput(eof = false) {
-  if (!inputRequest || active?.id !== inputRequest.id) return;
+  if (!inputRequest || activeRunId !== inputRequest.id) return;
   const request = inputRequest;
   const value = $('stdin').value;
   if (!eof) appendOutput(`${value}\n`, 'stdin');
   closeInput();
   runtimeStatus('runtimeRunning', 'loading');
   setText('run-status', 'running');
-  setText('result-label', 'runningCode');
   try { worker.postMessage({ type: 'input-response', ...request, value, eof }); }
   catch (error) { failRuntime(error.message); }
 }
@@ -230,7 +445,7 @@ function clearOutput() {
   $('output-placeholder').hidden = !!inputRequest;
 }
 
-function appendOutput(text, stream = 'stdout') {
+function appendOutput(text, stream = 'stdout', { isolate = false } = {}) {
   if (typeof text !== 'string' || !text || outputTruncated) return;
   $('output').hidden = false;
   $('output-placeholder').hidden = true;
@@ -238,12 +453,12 @@ function appendOutput(text, stream = 'stdout') {
   const slice = text.slice(0, available);
   outputLength += slice.length;
   const last = $('output').lastElementChild;
-  if (last && last.className === stream) last.append(document.createTextNode(slice));
+  if (!isolate && last?.localName === 'span' && last.className === stream) last.append(document.createTextNode(slice));
   else {
-    const span = document.createElement('span');
-    span.className = stream === 'stderr' ? 'stderr' : stream === 'stdin' ? 'stdin' : 'stdout';
-    span.textContent = slice;
-    $('output').append(span);
+    const chunk = document.createElement(isolate ? 'bdi' : 'span');
+    chunk.className = stream === 'stderr' ? 'stderr' : stream === 'stdin' ? 'stdin' : 'stdout';
+    chunk.textContent = slice;
+    $('output').append(chunk);
   }
   if (text.length > available) {
     outputTruncated = true;
@@ -261,7 +476,7 @@ function failRuntime(message) {
   worker?.terminate();
   worker = null;
   ready = false;
-  active = null;
+  activeRunId = null;
   runtimeStatus('runtimeFailed', 'error');
   setText('runtime-note', 'failedNote');
   $('retry').hidden = false;
@@ -275,7 +490,7 @@ function startRuntime() {
   worker?.terminate();
   const current = ++generation;
   ready = false;
-  active = null;
+  activeRunId = null;
   $('retry').hidden = true;
   runtimeStatus('runtimeLoading', 'loading');
   setText('runtime-note', 'loadingNote');
@@ -305,25 +520,17 @@ function startRuntime() {
         failRuntime(message.message || t('runtimeLoadError'));
         return;
       }
-      if (!active || message.id !== active.id) return;
+      if (activeRunId === null || message.id !== activeRunId) return;
       if (message.type === 'output') appendOutput(message.text, message.stream);
       else if (message.type === 'input') requestInput(message);
       else if (message.type === 'result' || message.type === 'error') {
         closeInput();
-        const finished = active;
-        active = null;
-        if (typeof message.python === 'string') {
-          if (finished.source === source) setLiteralText('python', message.python);
-          else setText('python', 'previewStale');
-          pythonSource = finished.source === source ? source : null;
-        }
+        activeRunId = null;
         const success = message.type === 'result' && message.ok !== false;
         if (message.type === 'error') appendOutput(`${message.message || t('requestFailed')}\n`, 'stderr');
-        if (finished.type === 'run' && outputLength === 0) appendOutput(`${t(success ? 'noOutput' : 'programFailed')}\n`, success ? 'stdout' : 'stderr');
-        setText('run-status', success ? (finished.type === 'run' ? 'finished' : 'previewUpdated') : (finished.type === 'run' ? 'finishedError' : 'translationFailed'));
-        setText('result-label', success ? (finished.type === 'run' ? 'runComplete' : 'translationComplete') : 'checkOutput');
+        if (outputLength === 0) appendOutput(`${t(success ? 'noOutput' : 'programFailed')}\n`, success ? 'stdout' : 'stderr');
+        setText('run-status', success ? 'finished' : 'finishedError');
         runtimeStatus('runtimeReady', '');
-        if (!success && finished.type === 'translate') selectView('output', false);
         syncControls();
       }
     };
@@ -331,50 +538,30 @@ function startRuntime() {
   } catch (error) { failRuntime(error.message); }
 }
 
-function execute(type) {
-  if (!ready || active || !editor) return;
+function execute() {
+  if (!ready || activeRunId !== null || !editor) return;
   source = editor.getValue();
-  active = { type, id: ++sequence, source };
+  activeRunId = ++sequence;
   closeInput();
-  if (type === 'run') {
-    selectView('output', false);
-    clearOutput();
-    setText('run-status', 'running');
-    setText('result-label', 'runningCode');
-  } else {
-    setText('python', 'translating');
-    setText('run-status', 'translating');
-  }
-  runtimeStatus(type === 'run' ? 'runtimeRunning' : 'runtimeTranslating', 'loading');
+  if (isFullscreen) setResultsOpen(true);
+  clearOutput();
+  setText('run-status', 'running');
+  runtimeStatus('runtimeRunning', 'loading');
   syncControls();
-  try { worker.postMessage({ type, id: active.id, source, language: $('language').value }); }
+  try { worker.postMessage({ type: 'run', id: activeRunId, source, language: diagnosticsLanguage }); }
   catch (error) { failRuntime(error.message); }
 }
 
-function selectView(view, translate = true) {
-  if (view === 'python' && (!ready || active || !editor)) return;
-  selectedView = view;
-  for (const name of ['output', 'python']) {
-    const selected = name === view;
-    $(`${name}-tab`).setAttribute('aria-selected', String(selected));
-    $(`${name}-tab`).tabIndex = selected ? 0 : -1;
-    $(`${name}-panel`).hidden = !selected;
-  }
-  if (view === 'python' && translate && pythonSource !== source) execute('translate');
-}
-
 function stop() {
-  if (!active) return;
-  const type = active.type;
+  if (activeRunId === null) return;
   closeInput();
   // Terminating the dedicated worker also interrupts Python loops that never yield.
   generation++;
   worker?.terminate();
   worker = null;
-  active = null;
-  appendOutput(`\n${t(type === 'run' ? 'programStopped' : 'translationStopped')}\n`, 'stderr');
+  activeRunId = null;
+  appendOutput(`\n${t('programStopped')}\n`, 'stderr', { isolate: true });
   setText('run-status', 'restarting');
-  setText('result-label', 'stopped');
   startRuntime();
 }
 
@@ -400,14 +587,13 @@ async function loadExamples() {
     const salam = samples.find(sample => sample.id === 'salam') || samples[0];
     if (!saved && !userEdited && salam) {
       source = salam.source;
-      filename = `${salam.id.replace(/[^\w.-]/g, '_')}.blk`;
+      if (!filenameCustomized) setFilename(`${salam.id.replace(/[^\w.-]/g, '_')}.blk`);
       if (editor) {
         replacingSource = true;
         editor.setValue(source);
         replacingSource = false;
       }
       selectedExample = salam.id;
-      $('file-name').textContent = filename;
       persist();
     } else {
       const matching = samples.find(sample => sample.source === source);
@@ -429,31 +615,73 @@ function createFallback() {
   textarea.dataset.i18nAriaLabel = 'sourceEditor';
   textarea.spellcheck = false;
   textarea.value = source;
-  textarea.dir = rtl ? 'rtl' : 'ltr';
+  const container = $('editor');
+  const setDirection = value => {
+    textarea.dir = value ? 'rtl' : 'ltr';
+    container.dataset.editorDirection = textarea.dir;
+  };
+  setDirection(rtl);
   textarea.addEventListener('input', () => sourceChanged(textarea.value));
-  $('editor').replaceChildren(textarea);
+  container.replaceChildren(textarea);
+  const updateScrollbars = attachNativeScrollbars(container, textarea);
   setText('save-status', 'fallbackEditor');
-  return { getValue: () => textarea.value, setValue: value => { textarea.value = value; sourceChanged(value); }, setDirection: value => { textarea.dir = value ? 'rtl' : 'ltr'; }, setAriaLabel: value => textarea.setAttribute('aria-label', value), focus: () => textarea.focus() };
+  return {
+    getValue: () => textarea.value,
+    setValue(value) { textarea.value = value; updateScrollbars(); sourceChanged(value); },
+    setDirection,
+    setAriaLabel: value => textarea.setAttribute('aria-label', value),
+    focus: () => textarea.focus(),
+  };
 }
 
-$('file-name').textContent = filename;
+filenameButton.textContent = filename;
+new ResizeObserver(updateFilenameTooltip).observe(filenameButton);
+filenameButton.addEventListener('pointerenter', updateFilenameTooltip);
+filenameButton.addEventListener('dblclick', startRename);
+filenameButton.addEventListener('click', event => {
+  if (event.detail === 0 || event.pointerType === 'touch') startRename();
+});
+filenameInput.addEventListener('input', () => filenameInput.setCustomValidity(''));
+filenameInput.addEventListener('blur', () => finishRename({ commit: true }));
+filenameInput.addEventListener('keydown', event => {
+  if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey || !['Enter', 'Escape'].includes(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  finishRename({ commit: event.key === 'Enter', returnFocus: true });
+});
 $('direction-label').textContent = rtl ? 'RTL' : 'LTR';
 $('direction-icon').firstElementChild.setAttribute('href', rtl ? '#icon-align-right' : '#icon-align-left');
 $('direction').setAttribute('aria-pressed', String(rtl));
-$('run').addEventListener('click', () => execute('run'));
+$('fullscreen').addEventListener('click', () => setFullscreenMode(!isFullscreen));
+$('toggle-results').addEventListener('click', () => setResultsOpen(resultsPanel.hidden));
+$('maximize-results').addEventListener('click', () => setResultsMaximized(!resultsMaximized));
+const resultsResizeObserver = new ResizeObserver(() => resizeResults());
+for (const element of [workspace, resultsResizer, ...sourceControls, ...resultsControls]) {
+  resultsResizeObserver.observe(element);
+}
+resultsResizer.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || resultsDrag) return;
+  resultsDrag = { id: event.pointerId, y: event.clientY, height: resultsPanel.offsetHeight };
+  resultsResizer.setPointerCapture(event.pointerId);
+  resultsResizer.focus({ preventScroll: true });
+  event.preventDefault();
+});
+resultsResizer.addEventListener('pointermove', event => {
+  if (event.pointerId === resultsDrag?.id) resizeResults(resultsDrag.height + resultsDrag.y - event.clientY);
+});
+resultsResizer.addEventListener('lostpointercapture', event => {
+  if (event.pointerId === resultsDrag?.id) resultsDrag = null;
+});
+resultsResizer.addEventListener('keydown', event => {
+  const step = { ArrowUp: 32, ArrowDown: -32, Home: -Infinity, End: Infinity }[event.key];
+  if (step === undefined) return;
+  event.preventDefault();
+  resizeResults(resultsPanel.offsetHeight + step);
+});
+$('run').addEventListener('click', execute);
 $('stop').addEventListener('click', stop);
 $('retry').addEventListener('click', startRuntime);
 $('clear-output').addEventListener('click', clearOutput);
-$('output-tab').addEventListener('click', () => selectView('output'));
-$('python-tab').addEventListener('click', () => selectView('python'));
-for (const id of ['output-tab', 'python-tab']) $(id).addEventListener('keydown', event => {
-  if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-    event.preventDefault();
-    const view = event.key === 'Home' ? 'output' : event.key === 'End' ? 'python' : selectedView === 'output' ? 'python' : 'output';
-    selectView(view);
-    $(`${view}-tab`).focus();
-  }
-});
 $('direction').addEventListener('click', () => {
   rtl = !rtl;
   editor?.setDirection(rtl);
@@ -462,9 +690,9 @@ $('direction').addEventListener('click', () => {
   $('direction').setAttribute('aria-pressed', String(rtl));
   persist();
 });
-$('language').addEventListener('change', persist);
 $('input-form').addEventListener('submit', event => { event.preventDefault(); sendInput(); });
 $('input-eof').addEventListener('click', () => sendInput(true));
+attachNativeScrollbars($('result-viewport'), $('output-panel'));
 $('download').addEventListener('click', () => {
   if (!editor) return;
   const url = URL.createObjectURL(new Blob([editor.getValue()], { type: 'text/plain;charset=utf-8' }));
@@ -475,9 +703,30 @@ $('download').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 document.addEventListener('keydown', event => {
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+  if (event.isComposing) return;
+  if (event.key === 'Enter' && event.shiftKey && !event.altKey && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
-    execute('run');
+    event.stopPropagation();
+    if (!event.repeat) stop();
+    return;
+  }
+  if (!isFullscreen || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+  if (event.code !== 'KeyJ' && event.code !== 'Backquote' && !['j', '`'].includes(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!event.repeat) setResultsOpen(resultsPanel.hidden);
+}, { capture: true });
+document.addEventListener('keydown', event => {
+  if (isFullscreen && !event.defaultPrevented && event.key === 'Escape') {
+    if (!event.repeat) {
+      if (resultsMaximized) setResultsMaximized(false);
+      else setFullscreenMode(false);
+    }
+    return;
+  }
+  if (!event.shiftKey && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault();
+    execute();
   }
 });
 window.addEventListener('pagehide', () => {
@@ -487,7 +736,7 @@ window.addEventListener('pagehide', () => {
   worker?.terminate();
   worker = null;
   ready = false;
-  active = null;
+  activeRunId = null;
   clearTimeout(loadingTimer);
   syncControls();
 });
@@ -495,7 +744,7 @@ window.addEventListener('pageshow', event => { if (event.persisted) startRuntime
 
 loadExamples();
 startRuntime();
-createEditor($('editor'), { source, rtl, ariaLabel: t('sourceEditor'), onChange: sourceChanged, onRun: () => execute('run') }).then(value => {
+createEditor($('editor'), { source, rtl, ariaLabel: t('sourceEditor'), onChange: sourceChanged, onRun: execute }).then(value => {
   editor = value;
   editor.setAriaLabel(t('sourceEditor'));
   if (editor.getValue() !== source) { replacingSource = true; editor.setValue(source); replacingSource = false; }

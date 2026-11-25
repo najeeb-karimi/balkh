@@ -32,7 +32,7 @@ test('development rebuilds reload the browser, preserve drafts, and recover from
     for (const name of ['balkh', 'examples', 'LICENSE', 'editors/vscode/syntaxes', 'editors/vscode/language-configuration.json', 'editors/vscode/src/tokens.cjs']) {
       await fs.cp(path.join(repo, name), path.join(fixture, name), { recursive: true, filter: (file) => !file.includes('__pycache__') });
     }
-    for (const name of ['scripts', 'assets', 'app.js', 'editor.js', 'i18n.js', 'index.html', 'style.css', 'worker.js', 'runner.py']) {
+    for (const name of ['scripts', 'assets', 'app.js', 'editor.js', 'scrollbars.js', 'i18n.js', 'index.html', 'style.css', 'worker.js', 'runner.py']) {
       await fs.cp(path.join(playground, name), path.join(project, name), { recursive: true });
     }
     await fs.symlink(path.join(playground, 'node_modules'), modules, 'junction');

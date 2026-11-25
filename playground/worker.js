@@ -57,7 +57,7 @@ self.onmessage = async ({ data }) => {
       self.postMessage({ type: "ready", interactiveInput });
       return;
     }
-    if (!data || !["run", "translate"].includes(data.type)) {
+    if (data?.type !== "run") {
       throw new Error("Unknown playground request.");
     }
     if (!runner) throw new Error("The Python runtime is not ready.");
@@ -101,11 +101,9 @@ self.onmessage = async ({ data }) => {
           self.postMessage({ type: "input", id, requestId });
         });
       };
-      if (data.type === "run") {
-        result = interactiveInput
-          ? await runner.run_interactive.callPromising(data.source, data.language, requestInput, emit, flush)
-          : runner.run_interactive(data.source, data.language, requestInput, emit, flush);
-      } else result = runner.translate(data.source, data.language, emit, flush);
+      result = interactiveInput
+        ? await runner.run_interactive.callPromising(data.source, data.language, requestInput, emit, flush)
+        : runner.run_interactive(data.source, data.language, requestInput, emit, flush);
       const value = result.toJs({ dict_converter: Object.fromEntries });
       flush();
       self.postMessage({ type: "result", id, ...value });

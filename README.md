@@ -13,11 +13,13 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
 - **VS Code Support:** Syntax highlighting for `.blk` files and an optional editor with right-aligned source and indentation for Dari and Pashto.
-- **Browser Playground:** Run Balkh in your browser with RTL editing and output, localized errors, and Python preview, no installation required.
+- **Browser Playground:** Run Balkh in your browser with RTL editing and output, interactive input, and localized errors. No installation required.
 
 ## 🌐 Browser Playground
 
-The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. When code calls `input()`, answer interactively in **Output** and press Enter. Interactive input requires a supported browser, such as a current Chrome or Edge; see the [playground guide](playground/README.md#-browser-limits).
+The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. When code calls `input()`, answer interactively in **Results** and press Enter. Interactive input requires a supported browser, such as a current Chrome or Edge.
+
+On a cold Chrome visit, Pyodide transfers about **6 MB** before the first run. See the [playground guide](playground/README.md#-browser-limits) for runtime size, caching, and browser support.
 
 Once GitHub Pages is enabled and the playground workflow has deployed, open [the Balkh playground](https://najeeb-karimi.github.io/balkh/). See the [playground README](playground/README.md) for local preview, browser limitations, testing, and deployment setup.
 
