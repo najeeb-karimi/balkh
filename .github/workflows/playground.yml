@@ -3,11 +3,15 @@ name: Playground
 on:
   push:
     branches: [main]
-    paths:
+    paths: &playground_paths
       - 'playground/**'
+      - '!playground/**/*.md'
+      - '!playground/assets/fonts/vazirmatn/ttf/**'
+      - 'assets/balkh-logo-64.png'
+      - 'assets/balkh-wordmark.png'
       - 'balkh/**'
-      - 'examples/**'
-      - 'editors/vscode/syntaxes/**'
+      - 'examples/*.blk'
+      - 'editors/vscode/syntaxes/balkh.tmLanguage.json'
       - 'editors/vscode/language-configuration.json'
       - 'editors/vscode/src/tokens.cjs'
       - 'tests/**'
@@ -15,17 +19,7 @@ on:
       - 'LICENSE'
       - '.github/workflows/playground.yml'
   pull_request:
-    paths:
-      - 'playground/**'
-      - 'balkh/**'
-      - 'examples/**'
-      - 'editors/vscode/syntaxes/**'
-      - 'editors/vscode/language-configuration.json'
-      - 'editors/vscode/src/tokens.cjs'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'LICENSE'
-      - '.github/workflows/playground.yml'
+    paths: *playground_paths
   workflow_dispatch:
 
 permissions:

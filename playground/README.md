@@ -102,7 +102,7 @@ Run those commands from the repository root. Python is needed for these tests, w
 
 ## 🚢 GitHub Pages Deployment
 
-Pushes to `main` that affect the Playground or its inputs trigger the deployment workflow. It builds the site, tests the interpreter and browser runtime, and publishes the generated `playground/dist/` artifact to GitHub Pages after the checks pass. Pull requests run the checks without publishing. [Playground workflow](../.github/workflows/playground.yml)
+Pushes to `main` and pull requests use the same path filters for Playground code, build inputs, and tests. Documentation-only changes skip the workflow. A successful build on `main` publishes the generated `playground/dist/` artifact to GitHub Pages after the interpreter and browser checks pass. [Playground workflow](../.github/workflows/playground.yml)
 
 Check build and deploy status under **Actions → Playground**. A successful deploy job reports the published URL. To deploy manually, select **Run workflow** and choose `main`.
 
