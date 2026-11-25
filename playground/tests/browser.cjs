@@ -980,6 +980,73 @@ test('editor scrolling stays smooth and synchronized across the code, gutter and
   } finally { await context.close(); }
 });
 
+test('both editors indent block bodies in English, Dari, and Pashto', { timeout: 60000 }, async () => {
+  const cases = [
+    ['for i in range(3):', 4],
+    ['while True:', 4],
+    ['برای نام در کاربران:', 4],
+    ['تاوقتی درست:', 4],
+    ['دپاره نوم کې کارنان:', 4],
+    ['ترڅو سم:', 4],
+    ['def greet(name: str) -> None:', 4],
+    ['تابع سلام(نام): # comment', 4],
+    ['فنکشن سلام(نوم):', 4],
+    ['async def fetch_data():', 4],
+    ['غیرهمزمان تابع دریافت():', 4],
+    ['class Account:', 4],
+    ['صنف کاربر:', 4],
+    ['if ready:', 4],
+    ['وگرنه_اگر درست:', 4],
+    ['که_نه:', 4],
+    ['with open(path) as file:', 4],
+    ['با باز(مسیر) بعنوان فایل:', 4],
+    ['سره پرانیستل(لار) لکه دوتنه:', 4],
+    ['هڅه:', 4],
+    ['بجز ValueError:', 4],
+    ['except* ValueError:', 4],
+    ['بجز* ValueError:', 4],
+    ['پرته*(ValueError, TypeError):', 4],
+    ['په_پای:', 4],
+    ['match value:', 4],
+    ['match value:\n    case [x, y]:', 8],
+    ['    لپاره = 3', 4],
+    ['    ترڅو سم:  # keep the loop running', 8],
+    ['# while True:', 0],
+    ['text = "for i in x:"', 0],
+    ['while True: pass', 0],
+    ['while True', 0],
+    ['def greet(): pass', 0],
+    ['case_value: str', 0],
+    ['match(value)', 0],
+  ];
+  for (const fallback of [false, true]) {
+    const context = await editorContext();
+    await context.route('**/worker.js', route => route.abort());
+    if (fallback) await context.route('**/onig.wasm', route => route.abort());
+    const page = await context.newPage();
+    try {
+      await page.goto(baseUrl);
+      const textarea = page.locator('.editor-fallback');
+      if (fallback) await textarea.waitFor();
+      else await page.waitForFunction(() => !!window.balkhTestEditor);
+      for (const [header, spaces] of cases) {
+        if (fallback) await textarea.fill(header);
+        else {
+          await page.evaluate(value => {
+            const editor = window.balkhTestEditor;
+            editor.setValue(value);
+            editor.setPosition(editor.getModel().getFullModelRange().getEndPosition());
+            editor.focus();
+          }, header);
+        }
+        await page.keyboard.press('Enter');
+        const edited = fallback ? await textarea.inputValue() : await page.evaluate(() => window.balkhTestEditor.getValue());
+        assert.equal(edited.replace(/\r\n/g, '\n'), `${header}\n${' '.repeat(spaces)}`, header);
+      }
+    } finally { await context.close(); }
+  }
+});
+
 test('editor direction swaps line numbers and scrollbar while preserving editing, folding, and scrolling', { timeout: 60000 }, async () => {
   const draft = [
     '# Directional editor chrome', '# ' + 'بیا سلام '.repeat(16),

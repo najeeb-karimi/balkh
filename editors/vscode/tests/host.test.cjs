@@ -13,6 +13,7 @@ test('webview uses local bundled assets and keeps source out of HTML', async () 
   await host.receive({ type: 'ready' });
   assert.equal(host.sent[0].type, 'init');
   assert.equal(host.sent[0].text, source);
+  assert.equal(host.sent[0].options.autoIndent, 'full');
 });
 
 test('edits update the VS Code document, acknowledge versions, and save', async () => {

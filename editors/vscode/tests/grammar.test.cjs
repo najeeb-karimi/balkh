@@ -211,13 +211,16 @@ test('language configuration supports native blocks, comments, and whole words',
   assert.equal(config.comments.lineComment, '#');
   const increase = new RegExp(config.indentationRules.increaseIndentPattern);
   const decrease = new RegExp(config.indentationRules.decreaseIndentPattern);
-  for (const line of ['اگر درست:', 'که سم: # test', 'فنکشن سلام():', 'برای نام در کاربران:', 'غیرهمزمان تابع سلام():', 'async def greet():']) {
+  for (const line of [
+    'اگر درست:', 'که سم: # test', 'فنکشن سلام():', 'برای نام در کاربران:', 'غیرهمزمان تابع سلام():',
+    'async def greet():', 'match value:', '    case [x, y]:', 'except* ValueError:', 'پرته*(ValueError, TypeError):',
+  ]) {
     assert.ok(increase.test(line), line);
   }
-  for (const line of ['چاپ("اگر:")', '# که سم:', 'اگرنام = ۱', 'print("hello")']) {
+  for (const line of ['چاپ("اگر:")', '# که سم:', 'اگرنام = ۱', 'print("hello")', 'case_value: str', 'match(value)']) {
     assert.ok(!increase.test(line), line);
   }
-  for (const line of ['وگرنه:', 'که_نه:', 'که_نه_نو x:', 'finally:', 'پرته ValueError:', ')']) {
+  for (const line of ['وگرنه:', 'که_نه:', 'که_نه_نو x:', 'finally:', 'پرته ValueError:', 'بجز* ValueError:', ')']) {
     assert.ok(decrease.test(line), line);
   }
   for (const word of ['خوش_آمدید', 'مربع_ریښه', 'چاپول']) {

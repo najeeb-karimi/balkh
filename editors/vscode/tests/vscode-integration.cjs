@@ -125,7 +125,16 @@ async function run() {
     await vscode.commands.executeCommand('balkh.stopRun');
     assert.equal((await stoppable.finished).stopped, true, 'Stop must terminate the Output process');
     await vscode.commands.executeCommand('vscode.openWith', uri, 'default');
-    assert.equal(vscode.window.activeTextEditor.document.uri.toString(), uri.toString());
+    const standardEditor = vscode.window.activeTextEditor;
+    assert.equal(standardEditor.document.uri.toString(), uri.toString());
+    for (const header of ['def greet():', 'تابع سلام():', 'فنکشن سلام():', 'ترڅو سم:', 'match value:', 'except* ValueError:']) {
+      await replace(header);
+      const end = document.positionAt(header.length);
+      standardEditor.selection = new vscode.Selection(end, end);
+      await vscode.commands.executeCommand('type', { text: '\n' });
+      assert.equal(document.getText().replace(/\r\n/g, '\n'), `${header}\n    `, header);
+    }
+    assert.ok(await document.save());
     await fs.writeFile(path.join(testRoot, 'result.json'), JSON.stringify({ passed: true, vscode: vscode.version, run: 'Output and terminal exited 0; native input accepted Unicode and empty answers; cancellation and Stop terminated pending execution' }));
   } catch (error) {
     await fs.writeFile(path.join(testRoot, 'result.json'), JSON.stringify({ passed: false, error: error.stack }));

@@ -1,4 +1,4 @@
-import { createEditor } from './editor.js';
+import { blockIndentPattern, createEditor } from './editor.js';
 import { applyLanguage, setLiteralText, setText, t } from './i18n.js';
 import { attachNativeScrollbars } from './scrollbars.js';
 
@@ -622,6 +622,23 @@ function createFallback() {
   };
   setDirection(rtl);
   textarea.addEventListener('input', () => sourceChanged(textarea.value));
+  textarea.addEventListener('beforeinput', event => {
+    if (event.inputType !== 'insertLineBreak' || event.isComposing || !event.cancelable) return;
+    const { value, selectionStart, selectionEnd } = textarea;
+    const lineStart = selectionStart > 0 ? value.lastIndexOf('\n', selectionStart - 1) + 1 : 0;
+    const before = value.slice(lineStart, selectionStart);
+    const indent = before.match(/^[ \t]*/)[0];
+    const nextIndent = blockIndentPattern.test(before) ? indent + '    ' : indent;
+    if (!nextIndent) return;
+
+    event.preventDefault();
+    const newline = '\n' + nextIndent;
+    // The native insertion command keeps the newline and indent in the same undo step.
+    if (!document.execCommand?.('insertText', false, newline)) {
+      textarea.setRangeText(newline, selectionStart, selectionEnd, 'end');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
   container.replaceChildren(textarea);
   const updateScrollbars = attachNativeScrollbars(container, textarea);
   setText('save-status', 'fallbackEditor');

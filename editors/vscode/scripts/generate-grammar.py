@@ -140,8 +140,14 @@ def grammar():
 
 
 def configuration():
-    blocks = spellings({"def", "class", "if", "elif", "else", "for", "while", "try", "except", "finally", "with"})
+    blocks = spellings({
+        "def", "class", "if", "elif", "else", "for", "while",
+        "try", "except", "finally", "with", "match", "case",
+    })
     branches = spellings({"elif", "else", "except", "finally"})
+    exception_groups = {name + "*" for name in spellings({"except"})}
+    blocks.update(exception_groups)
+    branches.update(exception_groups)
     async_prefix = alternatives(spellings({"async"}))
     pairs = [["(", ")"], ["[", "]"], ["{", "}"], ["'", "'"], ['"', '"']]
     return {
@@ -154,7 +160,7 @@ def configuration():
         "wordPattern": r"[^\s`~!@#$%^&*()=+\[\]{}\\|;:'\",.<>/?-]+",
         "indentationRules": {
             "increaseIndentPattern": rf"^\s*(?:{async_prefix}\s+)?{alternatives(blocks)}(?=\s|:|\(|$).*:\s*(?:#.*)?$",
-            "decreaseIndentPattern": rf"^\s*(?:{alternatives(branches)}(?=\s|:|$).*:|[\]\)}}])",
+            "decreaseIndentPattern": rf"^\s*(?:{alternatives(branches)}(?=\s|:|\(|$).*:|[\]\)}}])",
         },
     }
 

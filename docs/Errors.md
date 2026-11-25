@@ -8,6 +8,8 @@ balkh app.blk --lang pashto
 balkh --lang pashto
 ```
 
+In the browser Playground, choose the diagnostic language from **Error messages** in Results. It applies to the next run and is independent of the interface language.
+
 ## 💬 Explanations and Hints
 
 | Exception | Guidance |
@@ -62,6 +64,7 @@ Diagnostics go to standard error; program output stays on standard output. An un
 Export validation uses the selected diagnostic language:
 
 ```bash
+balkh app.blk --py --lang pashto
 balkh app.blk --to-py app.py --lang pashto
 balkh app.py --to-blk app.blk --lang pashto
 ```

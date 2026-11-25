@@ -33,7 +33,7 @@ The standard editor uses a declarative TextMate grammar. The optional RTL editor
 
 ## 📦 Build and Install Locally
 
-The extension requires desktop VS Code 1.100 or newer. Installing an already-built VSIX does not require Python or Node.js; building it from source requires Python 3.8+, Node.js 20+, and npm. The commands below expect `python` on your terminal's PATH; activate your Python virtual environment first if needed.
+The extension requires desktop VS Code 1.100 or newer. VS Code can install a built VSIX directly. To build it from source, use Python 3.8 or newer, Node.js 22 or newer, and npm. The build expects `python` on your terminal's PATH.
 
 From this repository's root:
 
@@ -51,7 +51,7 @@ The installable VSIX contains the grammar, language configuration, RTL editor an
 
 After installation, open one of the repository's `examples/*.blk` files. Colors follow your selected editor theme.
 
-Install the extension in the VS Code profile you use for this project; using **Extensions: Install from VSIX…** in that window targets its current profile. The isolated integration-test command below uses a separate extensions directory and does not install the extension in your usual profile. After upgrading, run **Developer: Reload Window** if the new editor option or changes have not appeared.
+Install the extension in the VS Code profile you use for this project. **Extensions: Install from VSIX…** targets the current window's profile. When reinstalling a rebuilt VSIX with the same version from the terminal, add `--force` to the install command. Run **Developer: Reload Window** to load the updated extension in an open window. The integration-test command below uses an isolated profile and extensions directory.
 
 ## ▶️ Run a Balkh Program
 
@@ -113,6 +113,16 @@ To edit a `.blk` file from the right:
 
 The RTL editor uses the same grammar as standard highlighting, with right-aligned lines and indentation from the right. Direction changes affect the display only. Save with **Ctrl+S** (**Cmd+S** on macOS); undo and redo use VS Code's document history. Changes made elsewhere update the editor. If external changes overlap unacknowledged local edits, a prompt preserves your edits until you choose **Use My Edits** or **Use File Changes**.
 
+Both editors use the shared Balkh indentation rules when `editor.autoIndent` is set to `full`, the VS Code default. Press **Enter** after a complete single-line block header ending in `:` to indent its body, including after `def`, `تابع`, and `فنکشن`. The RTL editor follows your VS Code setting for `editor.autoIndent`. To set it just for Balkh, add this to your settings:
+
+```json
+{
+    "[balkh]": {
+        "editor.autoIndent": "full"
+    }
+}
+```
+
 The extension leaves the standard editor as its default, while this repository's `.vscode/settings.json` selects **Balkh RTL Editor** for `.blk` files. Install the extension to use that workspace override. To use RTL automatically in another project, open **Preferences: Open Workspace Settings (JSON)** and merge the following into your settings. Use **Preferences: Open User Settings (JSON)** instead to apply it across projects in your current profile. If `workbench.editorAssociations` already exists, add the `*.blk` entry to that object.
 
 ```json
@@ -134,6 +144,7 @@ VS Code's standard editor does not expose RTL line alignment through its support
 | No highlighting in a `.blk` file | In the standard editor, click the language mode in the status bar and choose **Balkh**. In Extensions, confirm **Balkh Language** (`balkh.balkh-language`) is installed and enabled in the current profile and workspace. |
 | **Balkh RTL Editor** is missing | Install version `0.2.0` or newer in the current profile, run **Developer: Reload Window**, then try **Reopen Editor With…** again. |
 | Source is still left-aligned | The standard editor remains left-aligned. Select **Balkh RTL Editor**; if it is already open, use **Switch to RTL**. |
+| Enter leaves the next line unindented | Set `editor.autoIndent` to `full` for Balkh and press Enter after a complete single-line block header ending in `:`. For the RTL editor, use the current VSIX build. |
 | The RTL editor cannot load | Reopen with **Text Editor** to continue editing. Rebuild with `npm run package` and reinstall the generated VSIX; packaging includes the required JavaScript, CSS, font, and tokenizer assets. |
 | The VSIX file is missing | Run `npm run package` inside `editors/vscode/`. The generated `balkh-language-0.5.0.vsix` is not tracked in Git. |
 | `code` is not recognized in the terminal | Use **Extensions: Install from VSIX…** from VS Code's Command Palette and select the generated VSIX instead. |
@@ -147,7 +158,7 @@ VS Code's standard editor does not expose RTL line alignment through its support
 
 ## 🛠️ Development and Verification
 
-Run the following commands inside `editors/vscode/`. The grammar and indentation patterns are generated from `balkh/keywords.py`. After changing the language aliases:
+The generator uses `balkh/keywords.py` for English and localized spellings. After changing the aliases or block rules, run these commands inside `editors/vscode/`:
 
 ```bash
 npm run generate
@@ -166,14 +177,14 @@ $env:BALKH_BROWSER = "chrome"
 npm run test:browser
 ```
 
-The browser tests verify editor right alignment, nested indentation, highlighting, direction toggling, editing, save, undo/redo messages, running after typing, and external-change conflicts. They also check right-aligned output prompts, literal mixed-language text, output direction toggling, scrolling, Copy, Clear, and Stop. They are separate from `npm test` and the packaging checks.
+The browser tests verify editor right alignment, auto-indent after English, Dari, and Pashto block headers, highlighting, direction toggling, editing, save, undo/redo messages, running after typing, and external-change conflicts. They also check right-aligned output prompts, literal mixed-language text, output direction toggling, scrolling, Copy, Clear, and Stop. Run them separately from `npm test` and the packaging checks.
 
 For a development preview, run `npm run build` first, then launch VS Code with `--extensionDevelopmentPath` pointing to this directory. Rebuild after changes to `src/`, the grammar, or the language configuration so the RTL editor receives those changes. Repackage and reinstall the VSIX to update an installed copy. **Developer: Inspect Editor Tokens and Scopes** works in the standard editor; the root scope is `source.balkh`.
 
-To verify native document save/undo/redo, execution in the Balkh Output view and terminal modes, native Unicode/empty input and cancellation, and the Stop command, run the integration test in an isolated profile. After building and installing Balkh in the runner's Python environment, use this PowerShell command from the repository root:
+The isolated integration test covers block auto-indent in the standard editor, native document save/undo/redo, execution in Output and terminal modes, Unicode and empty input, cancellation, and Stop. Build the extension and install Balkh in the runner's Python environment, then run this PowerShell command from the repository root:
 
 ```powershell
-code . --extensionDevelopmentPath="$PWD/editors/vscode" `
+code --wait . --extensionDevelopmentPath="$PWD/editors/vscode" `
     --extensionTestsPath="$PWD/editors/vscode/tests/vscode-integration.cjs" `
     --user-data-dir="$PWD/.vscode-test/rtl-user" `
     --extensions-dir="$PWD/.vscode-test/rtl-extensions" `

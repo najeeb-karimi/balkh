@@ -53,6 +53,7 @@ function activate(context) {
         return {
           fontFamily: config.get('fontFamily'), fontSize: config.get('fontSize'),
           tabSize: config.get('tabSize'), insertSpaces: config.get('insertSpaces'),
+          autoIndent: config.get('autoIndent', 'full'),
           wordWrap: config.get('wordWrap'), renderWhitespace: config.get('renderWhitespace'),
           readOnly: vscode.workspace.fs.isWritableFileSystem(document.uri.scheme) === false,
         };

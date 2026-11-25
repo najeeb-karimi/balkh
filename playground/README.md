@@ -7,6 +7,7 @@ A static, browser-based Balkh editor for GitHub Pages. Python runs in a [module 
 - English, Dari, and Pashto interface languages, with a header language button, RTL controls, and a remembered preference. English is the default.
 - Self-hosted Vazirmatn for Dari/Pashto interface text, including the trilingual headline and language menu.
 - Monaco editor with Dari, Pashto, and mixed Python syntax highlighting, native numerals, right-aligned indentation, and an RTL/LTR toggle. RTL puts line numbers on the right and the scrollbar on the left; LTR reverses them.
+- Block auto-indent in both the Monaco editor and the basic editor.
 - Run and Stop controls, keyboard execution, RTL output, and Dari or Pashto diagnostics with original source locations.
 - `.blk` downloads, repository examples, and a locally saved source draft.
 - Interactive input in Results, with support for repeated prompts, empty answers, Unicode text, and end-of-input.
@@ -35,11 +36,13 @@ npm start
 
 This serves `playground/dist/` without watching or injecting development code. Serve the site over HTTP; opening `index.html` as a `file://` URL cannot load its workers and assets.
 
-The build copies the current interpreter sources, examples, and licenses into ignored `playground/dist/`, and bundles the editor and tokenizer. It reuses the VS Code extension's generated grammar and token classification. Changes to keyword mappings should also regenerate that grammar with `python editors/vscode/scripts/generate-grammar.py`.
+The build copies the current interpreter sources, examples, and licenses into ignored `playground/dist/`, and bundles the editor and tokenizer. It reuses the VS Code extension's generated grammar, language configuration, and token classification. After changing keyword mappings or block rules, run `python editors/vscode/scripts/generate-grammar.py` from the repository root.
 
 ## 🧭 Using the Playground
 
 Use the language button in the header to choose **English**, **دری**, or **پښتو**. It updates the interface immediately and remembers the choice in this browser. The headline always welcomes visitors in all three languages; its supporting sentence follows the interface language. Interface language, source direction, and the error-message language are independent; switching the interface preserves code, output, input, and running programs.
+
+Press **Enter** after a complete single-line block header ending in `:` to indent the next line. Both editors use the same rules for functions (including `def`, `تابع`, and `فنکشن`), classes, conditionals, loops, exception handling, context managers, and Python's `match` and `case` blocks.
 
 Choose an example or write code, then select **Run** in the source toolbar alongside **Stop**, **RTL/LTR**, and **Download**. **Ctrl+Enter** (or **Cmd+Enter** on macOS) also runs the program. Use **Ctrl+Shift+Enter** (or **Cmd+Shift+Enter** on macOS) to stop it. Results shows program output and interactive prompts. The diagnostics selector changes error explanations, and both Dari and Pashto keywords work regardless of that setting.
 
@@ -63,7 +66,7 @@ The page starts loading the pinned **Pyodide 314.0.8** runtime from jsDelivr bef
 
 Later visits and worker restarts can reuse the browser's HTTP cache. After pressing **Stop** in the same test, Chrome reused all five Pyodide files from cache. Offline availability depends on which files the browser has cached. An internet connection is required whenever the runtime needs to be fetched. Load failures display a retry control.
 
-Interactive input uses Pyodide's [JavaScript Promise Integration](https://blog.pyodide.org/posts/jspi/) to suspend synchronous Python without rewriting the program or requiring special hosting headers. Use a browser that supports it, such as current Chrome or Edge. Support is detected in the worker. Other browsers can still run programs without input and get a clear message if a program requests interactive input.
+Interactive input uses [JavaScript Promise Integration in Pyodide](https://blog.pyodide.org/posts/jspi/) to suspend synchronous Python while it waits for an answer. The worker checks for `WebAssembly.Suspending` and `WebAssembly.promising`. Current Chrome, Edge, and Firefox support these APIs. Browsers without them can still run programs that do not request interactive input. [Firefox JSPI release notes](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/153)
 
 Python's browser runtime differs from a desktop installation: subprocesses, ordinary OS sockets, and native desktop libraries are unavailable. This playground includes Balkh and Pyodide's standard library; it does not automatically install arbitrary third-party Python packages. The browser's virtual filesystem is temporary, and very large programs can still exhaust browser memory. Displayed output is capped to keep verbose programs responsive.
 
@@ -78,7 +81,7 @@ npx playwright install chromium
 npm test
 ```
 
-On Windows, tests use installed Microsoft Edge by default. Set `BALKH_BROWSER=chromium` to use Playwright's Chromium instead, or set another installed Playwright channel. On Linux, tests use Playwright Chromium. Tests serve the site under `/balkh/` to check project-site paths and run real Pyodide with network access, including Unicode output, localized diagnostics, interactive input, Stop and recovery, and responsive layout.
+On Windows, tests use installed Microsoft Edge by default. Set `BALKH_BROWSER=chromium` to use Playwright's Chromium instead, or set another installed Playwright channel. On Linux, tests use Playwright Chromium. Tests serve the site under `/balkh/` and run real Pyodide with network access. Coverage includes Unicode output, localized diagnostics, interactive input, Stop and recovery, fullscreen Results, filename editing, and block auto-indent in both editors.
 
 The Python bridge is also covered by the repository's regular suite:
 

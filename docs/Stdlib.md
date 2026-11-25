@@ -1,6 +1,6 @@
 # Localized Standard Library
 
-The optional `balkh.stdlib` package provides native names for common Python math, random, and date/time operations. It needs no extra dependencies. Import modules explicitly in Balkh programs and in the REPL.
+The optional `balkh.stdlib` package provides native names for common Python math, random, and date/time operations. It needs no extra dependencies. Import modules explicitly in Balkh programs and in the REPL. The same modules are available in the Playground.
 
 | Python library | Dari module | Pashto module |
 | --- | --- | --- |

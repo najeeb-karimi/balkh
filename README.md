@@ -7,17 +7,19 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 ## ✨ Features
 - **Bilingual Syntax:** Write in Dari (`اگر`, `تابع`, `چاپ`), Pashto (`که`, `فنکشن`, `چاپول`), or mix both in the same file.
 - **Native Numerals:** Automatically converts numeric literals such as `۱۲۳` to `123`, preserving text inside strings and comments.
-- **Full Python Ecosystem:** Import and use any standard or third-party Python library (`random`, `math`, `json`, `requests`, etc.).
+- **Python Ecosystem:** Use standard and third-party libraries from your local Python environment when running Balkh through the CLI.
 - **Friendly Error Messages:** Dari and Pashto explanations and hints, native-digit line numbers, and original Balkh source locations.
 - **Interactive Shell:** Run `balkh` without a filename to try expressions, keep variables, and write multi-line programs live.
 - **Bidirectional Translation:** Export Balkh as Python, or translate Python into Dari or Pashto Balkh without executing it.
 - **Localized Standard Library:** Optional math, random, and date/time helpers with Dari and Pashto names.
-- **VS Code Support:** Syntax highlighting for `.blk` files and an optional editor with right-aligned source and indentation for Dari and Pashto.
+- **VS Code Support:** Syntax highlighting and block auto-indent for `.blk` files, with an optional right-aligned editor for Dari and Pashto.
 - **Browser Playground:** Run Balkh in your browser with RTL editing and output, interactive input, and localized errors. No installation required.
 
 ## 🌐 Browser Playground
 
-The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. When code calls `input()`, answer interactively in **Results** and press Enter. Interactive input requires a supported browser, such as a current Chrome or Edge.
+The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. When code calls `input()`, answer interactively in **Results** and press Enter. Interactive input works in current Chrome, Edge, and Firefox releases with JavaScript Promise Integration.
+
+You can rename the saved draft inline and expand the editor to fill the browser tab. In fullscreen, Results can dock below the editor, resize, or fill the workspace.
 
 On a cold Chrome visit, Pyodide transfers about **6 MB** before the first run. See the [playground guide](playground/README.md#-browser-limits) for runtime size, caching, and browser support.
 
@@ -122,7 +124,7 @@ Pashto module names and functions are available too:
 
 </div>
 
-Run `balkh examples/stdlib.blk` or see the [standard library reference](docs/Stdlib.md) for the complete alias tables and behavior. These helpers work in the REPL and exported Python with Balkh installed. Dates use Python's Gregorian calendar.
+Run `balkh examples/stdlib.blk` to try the helpers, which also work in the REPL. Dates use Python's Gregorian calendar. See the [standard library reference](docs/Stdlib.md) for the full alias tables and how Python export handles these wrappers.
 
 ## 🩺 Errors and Tracebacks
 
@@ -139,7 +141,7 @@ Errors go to standard error, and uncaught file execution errors exit with status
 
 ## 🎨 VS Code Support
 
-Build and install the local syntax-highlighting extension:
+Build and install the local Balkh Language extension:
 
 ```bash
 cd editors/vscode
@@ -148,7 +150,9 @@ npm run package
 code --install-extension balkh-language-0.5.0.vsix
 ```
 
-Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. It includes highlighting, indentation from the right, and an RTL/LTR toggle. Use **Run Balkh File** from the editor's Run menu or the RTL editor's toolbar to save and run the program in the right-aligned **Balkh Output** panel, with an RTL/LTR toggle and Copy, Clear, and Stop controls. Programs that request input open native VS Code input boxes, with answers echoed in Output; Enter submits, Escape stops, and an EOF button ends input. Keep `balkh.runInTerminal` disabled for this flow; enable it for terminal-specific programs. The runner detects workspace `.venv`/`venv` environments; set `balkh.pythonPath` to choose another interpreter. The extension also provides comment toggling, bracket/quote pairing, and indentation support for Dari, Pashto, and English blocks. See the [extension README](editors/vscode/README.md) for prerequisites, Code Runner compatibility, RTL editor details, tests, and development instructions.
+Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. Both editors provide syntax highlighting, comment toggling, and bracket and quote pairing. With `editor.autoIndent` set to `full`, pressing Enter after a single-line block header indents its body in English, Dari, or Pashto.
+
+Use **Run Balkh File** to save and run the program in the right-aligned **Balkh Output** panel. Answer prompts in native VS Code input boxes. Enter submits, Escape stops, and **End input (EOF)** ends input. Set `balkh.runInTerminal` to `true` for programs that need terminal features. The runner detects workspace `.venv` and `venv` environments, and `balkh.pythonPath` lets you choose another interpreter. See the [extension README](editors/vscode/README.md) for prerequisites, Code Runner compatibility, and development instructions.
 
 ## 🧪 Running Tests
 

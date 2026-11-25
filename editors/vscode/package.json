@@ -9,9 +9,6 @@
     "vscode": "^1.100.0"
   },
   "main": "./extension.cjs",
-  "activationEvents": [
-    "onCustomEditor:balkh.rtlEditor"
-  ],
   "categories": [
     "Programming Languages"
   ],

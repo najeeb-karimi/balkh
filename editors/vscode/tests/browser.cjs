@@ -25,6 +25,8 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
   try {
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
     const host = await hostFixture('', baseUrl);
+    await host.receive({ type: 'ready' });
+    const { options } = host.sent[0];
     html = host.panel.webview.html;
     browser = await chromium.launch({ channel: process.env.BALKH_BROWSER || 'msedge', headless: true });
     const page = await browser.newPage({ viewport: { width: 1200, height: 850 } });
@@ -32,7 +34,7 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
     const source = fs.readFileSync(path.resolve(root, '../../examples/salam.blk'), 'utf8');
-    await page.addInitScript(({ source }) => {
+    await page.addInitScript(({ source, options }) => {
       let stored = {};
       const host = window.testHost = { text: source, version: 1, saves: 0, runs: [], commands: [], history: [source], redo: [], delay: 0, holdEdits: false, waitingEdits: [] };
       const post = (data) => window.postMessage(data, '*');
@@ -40,7 +42,7 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
       window.acquireVsCodeApi = () => ({
         getState: () => stored, setState: (value) => { stored = value; },
         postMessage: (message) => {
-          if (message.type === 'ready') post({ type: 'init', text: host.text, version: host.version, options: { fontSize: 16, tabSize: 4, insertSpaces: true, wordWrap: 'off', readOnly: false } });
+          if (message.type === 'ready') post({ type: 'init', text: host.text, version: host.version, options });
           else if (message.type === 'edit') {
             const apply = () => {
             if (message.version !== host.version) return post({ type: 'conflict', text: host.text, version: host.version });
@@ -63,7 +65,7 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
           }
         },
       });
-    }, { source });
+    }, { source, options });
     await page.goto(baseUrl);
     await page.waitForSelector('.monaco-editor');
     await page.waitForFunction(() => document.getElementById('status').textContent === '');
@@ -96,6 +98,18 @@ test('RTL editor renders, highlights, edits, saves, undoes, and resolves externa
     await page.getByRole('button', { name: 'Switch to RTL', exact: true }).click();
     await page.waitForSelector('.view-line[dir="rtl"]');
     assert.equal(await page.evaluate(() => window.testHost.text), source, 'direction toggle edits source');
+
+    for (const header of [
+      'def greet(name: str):', 'تابع سلام(نام):', 'فنکشن سلام(نوم):',
+      'for i in range(3):', 'تاوقتی درست:', 'ترڅو سم:',
+      'match value:', 'except* ValueError:',
+    ]) {
+      await page.keyboard.press('Control+a');
+      await page.keyboard.insertText(header);
+      await page.keyboard.press('Enter');
+      await page.keyboard.insertText('pass');
+      await page.waitForFunction(text => window.testHost.text.replace(/\r\n/g, '\n') === text, `${header}\n    pass`, { timeout: 5000 });
+    }
 
     const edited = 'چاپ("دنیا")\n# test 😀';
     await page.keyboard.press('Control+a');

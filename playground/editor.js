@@ -16,6 +16,9 @@ import configuration from '../editors/vscode/language-configuration.json';
 import { tokenClass } from '../editors/vscode/src/tokens.cjs';
 import { createScrollbars } from './scrollbars.js';
 
+const indentationRules = Object.fromEntries(Object.entries(configuration.indentationRules).map(([key, value]) => [key, new RegExp(value)]));
+export const blockIndentPattern = indentationRules.increaseIndentPattern;
+
 self.MonacoEnvironment = { getWorker: () => new Worker(new URL('./editor.worker.js', document.baseURI)) };
 
 class TokenState {
@@ -37,7 +40,7 @@ async function setupLanguage() {
   monaco.languages.setLanguageConfiguration('balkh', {
     ...configuration,
     wordPattern: new RegExp(configuration.wordPattern),
-    indentationRules: Object.fromEntries(Object.entries(configuration.indentationRules).map(([key, value]) => [key, new RegExp(value)])),
+    indentationRules,
   });
   monaco.languages.setTokensProvider('balkh', {
     getInitialState: () => new TokenState(),
@@ -228,7 +231,7 @@ export async function createEditor(container, { source, rtl, ariaLabel, onChange
   const editor = monaco.editor.create(host, {
     model, theme: 'balkh-playground', automaticLayout: true, fontSize: 16, lineHeight: 29,
     fontFamily: '"Cascadia Code", "Noto Sans Mono", Consolas, Tahoma, monospace',
-    padding: { top: 17, bottom: 20 }, tabSize: 4, insertSpaces: true,
+    padding: { top: 17, bottom: 20 }, tabSize: 4, insertSpaces: true, autoIndent: 'full',
     minimap: { enabled: false }, scrollBeyondLastLine: false, renderLineHighlight: 'line',
     lineNumbersMinChars: 3, folding: true, glyphMargin: false,
     unicodeHighlight: { ambiguousCharacters: false, nonBasicASCII: false, invisibleCharacters: false },
