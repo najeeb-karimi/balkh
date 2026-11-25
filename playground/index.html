@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111b2b">
   <meta name="description" content="Write and run Balkh programs in Dari and Pashto, directly in your browser.">
   <title>Balkh Playground · بلخ</title>
+  <link rel="icon" href="./assets/balkh-logo-64.png" type="image/png" sizes="64x64">
   <link rel="preload" href="./assets/fonts/vazirmatn/Vazirmatn-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fonts/vazirmatn/Vazirmatn-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./style.css">
@@ -36,7 +37,7 @@
   </svg>
   <div class="shell">
     <header class="masthead">
-      <a class="brand" href="./" dir="ltr" aria-label="Balkh playground home" data-i18n-aria-label="home"><span class="brand-mark" aria-hidden="true">ب</span><span>Balkh <span class="brand-native" lang="fa" dir="rtl">بلخ</span></span></a>
+      <a class="brand" href="./" dir="ltr" aria-label="Balkh playground home" data-i18n-aria-label="home"><span>Balkh</span><img class="brand-wordmark" src="./assets/balkh-wordmark.png" width="66" height="44" alt=""></a>
       <div class="header-links">
         <div class="language-switcher">
           <button id="ui-language-toggle" class="language-button" aria-expanded="false" aria-controls="ui-language-menu" aria-label="Interface language: English" title="Interface language" data-i18n-title="chooseLanguage"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-globe"/></svg><span id="ui-language-label" dir="auto">English</span><svg class="icon disclosure-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"/></svg></button>
@@ -69,7 +70,7 @@
 
       <section class="workspace" aria-label="Balkh coding workspace" data-i18n-aria-label="workspace">
         <section class="panel source-panel" aria-labelledby="source-title">
-          <div class="panel-heading"><div class="panel-title"><h2 id="source-title" data-i18n="source">Source</h2><span class="file-chip" dir="ltr">.blk</span></div><span class="editor-brand" lang="en" dir="ltr">THE BALKH PLAYGROUND</span><div class="example-label"><span id="example-caption" data-i18n="example">Example</span><div class="example-picker"><button id="examples" class="language-button example-button" disabled aria-haspopup="listbox" aria-expanded="false" aria-controls="examples-menu" aria-labelledby="example-caption example-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-code"/></svg><span id="example-name" data-i18n="loadingExamples">Loading examples…</span><svg class="icon disclosure-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"/></svg></button><div id="examples-menu" class="language-menu example-menu" role="listbox" aria-label="Example" data-i18n-aria-label="example" hidden></div></div></div></div>
+          <div class="panel-heading"><div class="panel-title"><h2 id="source-title" data-i18n="source">Source</h2><span class="file-chip" dir="ltr">.blk</span></div><img class="editor-brand" src="./assets/balkh-wordmark.png" width="48" height="32" alt="Balkh"><div class="example-label"><span id="example-caption" data-i18n="example">Example</span><div class="example-picker"><button id="examples" class="language-button example-button" disabled aria-haspopup="listbox" aria-expanded="false" aria-controls="examples-menu" aria-labelledby="example-caption example-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-code"/></svg><span id="example-name" data-i18n="loadingExamples">Loading examples…</span><svg class="icon disclosure-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"/></svg></button><div id="examples-menu" class="language-menu example-menu" role="listbox" aria-label="Example" data-i18n-aria-label="example" hidden></div></div></div></div>
           <div class="editor-toolbar">
             <button type="button" id="file-name" dir="ltr" title="Double-click to rename the file">salam.blk</button>
             <div id="file-name-editor" dir="ltr" hidden>
@@ -98,9 +99,8 @@
 
       <div class="workspace-end" aria-hidden="true" dir="ltr">
         <span class="workspace-signature">
-          <svg class="signature-brace" viewBox="0 0 32 160" preserveAspectRatio="none" focusable="false"><use href="#brace-shape"/></svg>
+          <img src="./assets/balkh-logo-64.png" width="30" height="30" alt="">
           <bdi data-i18n="brandName">Balkh</bdi>
-          <svg class="signature-brace brace-closing" viewBox="0 0 32 160" preserveAspectRatio="none" focusable="false"><use href="#brace-shape"/></svg>
         </span>
       </div>
     </main>

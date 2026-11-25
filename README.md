@@ -1,4 +1,8 @@
-# 🏛️ Balkh (زبان برنامه‌نویسی بلخ)
+# ◆ Balkh (زبان برنامه‌نویسی بلخ)
+
+<p align="center">
+  <img src="assets/balkh-wordmark.png" alt="Balkh wordmark (بلخ)" width="220">
+</p>
 
 To our knowledge, **Balkh** is the first bilingual **Dari & Pashto** programming language, transpiled directly to Python.
 

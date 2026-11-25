@@ -29,6 +29,9 @@ async function build({ outdir = outputs[0] } = {}) {
   const fontRoot = path.join(root, 'assets/fonts/vazirmatn');
   const fontOutput = path.join(dist, 'assets/fonts/vazirmatn');
   fs.mkdirSync(fontOutput, { recursive: true });
+  for (const name of ['balkh-logo-64.png', 'balkh-wordmark.png']) {
+    fs.copyFileSync(path.join(repo, 'assets', name), path.join(dist, 'assets', name));
+  }
   for (const name of fs.readdirSync(fontRoot)) {
     if (name.endsWith('.woff2') || ['OFL.txt', 'AUTHORS.txt'].includes(name)) {
       fs.copyFileSync(path.join(fontRoot, name), path.join(fontOutput, name));

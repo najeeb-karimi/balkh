@@ -10,7 +10,7 @@ const repository = path.resolve(__dirname, '../..');
 const prefix = '/balkh/';
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png',
   '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm',
   '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
 };
@@ -129,17 +129,21 @@ test('fullscreen keeps the Monaco session and docks interactive Results below th
     const before = await page.locator('#editor').boundingBox();
     const results = page.locator('#results-panel');
     const toggle = page.locator('#toggle-results');
-    const editorTitle = page.locator('.editor-brand');
+    const editorWordmark = page.locator('.editor-brand');
     const resizer = page.getByRole('separator', { name: 'Resize Results' });
     const maximize = page.locator('#maximize-results');
-    assert.equal(await editorTitle.isVisible(), false);
+    assert.equal(await editorWordmark.isVisible(), false);
     assert.equal(await resizer.isVisible(), false);
     assert.equal(await maximize.isVisible(), false);
     assert.equal(await page.locator('#fullscreen').getAttribute('title'), 'Expand the editor to fill the browser tab');
     await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
     await results.waitFor({ state: 'hidden' });
     assert.equal(await page.evaluate(() => window.balkhNativeFullscreenRequests), 0);
-    assert.equal(await editorTitle.isVisible(), true);
+    assert.equal(await editorWordmark.isVisible(), true);
+    await editorWordmark.evaluate(image => image.decode());
+    const wordmark = await editorWordmark.boundingBox();
+    const heading = await page.locator('.source-panel .panel-heading').boundingBox();
+    assert.ok(Math.abs(wordmark.x + wordmark.width / 2 - (heading.x + heading.width / 2)) < 1);
     assert.equal(await page.locator('#fullscreen').getAttribute('title'), 'Return to the regular workspace');
     assert.equal(await page.locator('#runtime-bar').isVisible(), false);
     const expanded = await page.locator('#editor').boundingBox();
@@ -206,7 +210,7 @@ test('fullscreen keeps the Monaco session and docks interactive Results below th
     await toggle.waitFor({ state: 'hidden' });
     assert.equal(await resizer.isVisible(), false);
     assert.equal(await maximize.isVisible(), false);
-    assert.equal(await editorTitle.isVisible(), false);
+    assert.equal(await editorWordmark.isVisible(), false);
     assert.equal(await page.locator('#fullscreen').getAttribute('title'), 'Expand the editor to fill the browser tab');
     assert.equal(await results.isVisible(), true);
     assert.equal(await page.locator('#runtime-bar').isVisible(), true);
@@ -273,6 +277,16 @@ test('the GitHub Pages build runs real Balkh through Pyodide', { timeout: 420000
     await ready(page);
 
     await t.test('default program renders RTL highlighting, executes Unicode, and downloads the current source', async () => {
+      await page.locator('.brand-wordmark').evaluate(image => image.decode());
+      const faviconUrl = await page.locator('link[rel="icon"]').evaluate(link => link.href);
+      const footerLogo = await page.locator('.workspace-signature img').evaluate(async image => {
+        await image.decode();
+        return { url: image.currentSrc, width: image.naturalWidth, height: image.naturalHeight };
+      });
+      assert.deepEqual(footerLogo, { url: faviconUrl, width: 64, height: 64 });
+      const favicon = await page.request.get(faviconUrl);
+      assert.equal(favicon.status(), 200);
+      assert.equal(favicon.headers()['content-type'], 'image/png');
       await page.locator('#editor .view-line[dir="rtl"]').first().waitFor();
       const bounds = await page.locator('#editor .view-line').first().evaluate((line) => {
         const range = document.createRange();

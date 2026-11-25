@@ -1,4 +1,8 @@
-# 🎨 Balkh Language for VS Code
+# ◆ Balkh Language for VS Code
+
+<p align="center">
+  <img src="../../assets/balkh-wordmark.png" alt="Balkh wordmark (بلخ)" width="220">
+</p>
 
 Syntax highlighting and basic editing support for Balkh (`.blk`), including Dari, Pashto, and mixed Python programs. Open a `.blk` file and select **Balkh** as its language mode if it is not selected automatically.
 
@@ -28,6 +32,8 @@ Syntax highlighting and basic editing support for Balkh (`.blk`), including Dari
 ```
 
 </div>
+
+> If the code looks out of order in the Extensions view, [view the right-to-left example on GitHub](https://github.com/najeeb-karimi/balkh/blob/main/editors/vscode/README.md#-features).
 
 The standard editor uses a declarative TextMate grammar. The optional RTL editor bundles Monaco, TextMate, and Oniguruma locally; it does not download scripts at runtime. Use the `balkh` command in a terminal to run programs.
 

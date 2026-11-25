@@ -108,6 +108,7 @@ async function startDev({ port = Number(process.env.PORT || 4173) } = {}) {
 
   try {
     watch(root, name => ['app.js', 'editor.js', 'scrollbars.js', 'i18n.js', 'index.html', 'style.css', 'worker.js', 'runner.py'].includes(name));
+    watch(path.join(repo, 'assets'), name => ['balkh-logo-64.png', 'balkh-wordmark.png'].includes(name));
     watch(path.join(root, 'assets/fonts/vazirmatn'), name => name.endsWith('.woff2') || ['OFL.txt', 'AUTHORS.txt'].includes(name));
     watch(path.join(repo, 'balkh'), name => !name.split('/').some(part => ['__pycache__', 'tests', 'node_modules', '.dev', 'dist'].includes(part)) && name.endsWith('.py'), true);
     watch(path.join(repo, 'examples'), name => name.endsWith('.blk'));

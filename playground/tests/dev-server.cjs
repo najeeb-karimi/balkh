@@ -29,7 +29,7 @@ test('development rebuilds reload the browser, preserve drafts, and recover from
   let browser;
   let logs = '';
   try {
-    for (const name of ['balkh', 'examples', 'LICENSE', 'editors/vscode/syntaxes', 'editors/vscode/language-configuration.json', 'editors/vscode/src/tokens.cjs']) {
+    for (const name of ['assets', 'balkh', 'examples', 'LICENSE', 'editors/vscode/syntaxes', 'editors/vscode/language-configuration.json', 'editors/vscode/src/tokens.cjs']) {
       await fs.cp(path.join(repo, name), path.join(fixture, name), { recursive: true, filter: (file) => !file.includes('__pycache__') });
     }
     for (const name of ['scripts', 'assets', 'app.js', 'editor.js', 'scrollbars.js', 'i18n.js', 'index.html', 'style.css', 'worker.js', 'runner.py']) {
@@ -81,6 +81,13 @@ test('development rebuilds reload the browser, preserve drafts, and recover from
     await until(() => navigations > beforeFont);
     await page.locator('.editor-fallback').waitFor();
     assert.equal(await page.locator('.editor-fallback').inputValue(), '# draft kept across reloads');
+
+    const logo = path.join(fixture, 'assets/balkh-logo-64.png');
+    const beforeLogo = navigations;
+    await fs.writeFile(logo, await fs.readFile(logo));
+    await until(() => navigations > beforeLogo);
+    await page.locator('.editor-fallback').waitFor();
+    await page.locator('.workspace-signature img').evaluate(image => image.decode());
 
     const script = path.join(project, 'app.js');
     const originalScript = await fs.readFile(script, 'utf8');

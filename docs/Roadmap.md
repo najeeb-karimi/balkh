@@ -1,4 +1,4 @@
-# 🏛️ Balkh Development Roadmap
+# ◆ Balkh Development Roadmap
 
 1. **Fix CLI Argument Indexing & Add Automated Tests (`pytest`) — Complete**
    * Parse file paths and flags (`--py`, `--help`) with `argparse`, supporting flags before or after the filename and reporting invalid arguments.

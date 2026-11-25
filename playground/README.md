@@ -1,6 +1,12 @@
 # 🌐 Balkh Playground
 
-**[Open the Balkh Playground](https://najeeb-karimi.github.io/balkh/)**
+<p align="center">
+  <img src="../assets/balkh-wordmark.png" alt="Balkh wordmark (بلخ)" width="220">
+</p>
+
+<p align="center">
+  <strong><a href="https://najeeb-karimi.github.io/balkh/">Open the Balkh Playground</a></strong>
+</p>
 
 The Playground is a browser-based Balkh editor hosted on GitHub Pages. It uses the same `balkh/` package as the command-line interpreter. Pyodide runs Python in a module Web Worker. [Pyodide web worker guide](https://pyodide.org/en/stable/usage/webworker.html)
 
@@ -27,7 +33,7 @@ npm ci --ignore-scripts
 npm run dev
 ```
 
-Open **http://127.0.0.1:4173/balkh/**. The development server rebuilds and refreshes the browser when playground code, styles, HTML, interpreter sources, examples, or shared highlighting assets change. Reloading preserves your source draft and restarts Python. If a build fails, the last successful version stays available; fixing the source triggers another build. Use Ctrl+C to stop the server, or `PORT` to choose another port. Restart it after changing build/server scripts or dependencies.
+Open **http://127.0.0.1:4173/balkh/**. The development server rebuilds and refreshes the browser when playground code, styles, HTML, interpreter sources, examples, branding, or shared highlighting assets change. Reloading preserves your source draft and restarts Python. If a build fails, the last successful version stays available; fixing the source triggers another build. Use Ctrl+C to stop the server, or `PORT` to choose another port. Restart it after changing build/server scripts or dependencies.
 
 To preview the production artifact instead:
 
