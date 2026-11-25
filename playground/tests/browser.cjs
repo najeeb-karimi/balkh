@@ -1141,14 +1141,27 @@ test('editor direction swaps line numbers and scrollbar while preserving editing
     await chrome(true);
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
+      // The gutter follows CSS immediately, while Monaco resizes and rewraps asynchronously.
+      await page.waitForFunction(() => {
+        const editor = window.balkhTestEditor;
+        const node = editor.getDomNode();
+        const viewport = node.parentElement.getBoundingClientRect();
+        const lines = node.querySelector('.view-lines').getBoundingClientRect();
+        return Math.abs(editor.getLayoutInfo().width - viewport.width) <= 1
+          && Math.abs(lines.width - editor.getScrollWidth()) <= 1;
+      });
       await aligned();
       await chrome(true);
-      const range = await page.locator('.editor-host .view-line').first().evaluate(line => {
+      const geometry = await page.locator('.editor-host .view-line[dir="rtl"]').evaluateAll(lines => {
         const range = document.createRange();
-        range.selectNodeContents(line);
-        return { right: range.getBoundingClientRect().right, gutter: document.querySelector('.editor-side-gutter').getBoundingClientRect().left };
+        const right = Math.max(...lines.filter(line => line.textContent.trim()).map(line => {
+          range.selectNodeContents(line);
+          return range.getBoundingClientRect().right;
+        }));
+        return { right, gutter: document.querySelector('.editor-side-gutter').getBoundingClientRect().left };
       });
-      assert.ok(range.right <= range.gutter + 1, 'Wrapped RTL source must stop before the right-hand gutter');
+      assert.ok(Number.isFinite(geometry.right) && geometry.right <= geometry.gutter + 1,
+        `Wrapped RTL source must stop before the right-hand gutter at ${width}px (${geometry.right} vs ${geometry.gutter})`);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     }
     assert.deepEqual(errors, []);

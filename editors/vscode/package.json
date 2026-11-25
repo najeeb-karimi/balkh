@@ -127,6 +127,10 @@
     "vscode-textmate": "^9.2.0"
   },
   "overrides": {
+    "@vscode/vsce": {
+      "glob": "^14.0.6",
+      "minimatch": "^11.0.9"
+    },
     "dompurify": "^3.4.18"
   }
 }
