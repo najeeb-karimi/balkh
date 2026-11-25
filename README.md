@@ -17,13 +17,15 @@ Named after the ancient Afghan center of science, mathematics, and literature (*
 
 ## 🌐 Browser Playground
 
+**[Open the Balkh Playground](https://najeeb-karimi.github.io/balkh/)**
+
 The playground runs Python locally in your browser using Pyodide. It includes the repository's examples and localized standard library, saves your source draft in this browser, and offers a Stop button for long-running programs. When code calls `input()`, answer interactively in **Results** and press Enter. Interactive input works in current Chrome, Edge, and Firefox releases with JavaScript Promise Integration.
 
 You can rename the saved draft inline and expand the editor to fill the browser tab. In fullscreen, Results can dock below the editor, resize, or fill the workspace.
 
 On a cold Chrome visit, Pyodide transfers about **6 MB** before the first run. See the [playground guide](playground/README.md#-browser-limits) for runtime size, caching, and browser support.
 
-Once GitHub Pages is enabled and the playground workflow has deployed, open [the Balkh playground](https://najeeb-karimi.github.io/balkh/). See the [playground README](playground/README.md) for local preview, browser limitations, testing, and deployment setup.
+For local preview, testing, and GitHub Pages deployment, see the [Playground README](playground/README.md).
 
 ## 🚀 Quick Start
 

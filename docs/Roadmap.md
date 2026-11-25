@@ -36,7 +36,7 @@
    * Run `.blk` files from the editor or Explorer in a right-aligned Balkh Output panel with UTF-8 streaming, an RTL/LTR toggle, native interactive input boxes, EOF and Stop controls; offer a terminal option for terminal-specific programs, save pending edits before execution, detect workspace Python environments, and configure Code Runner compatibility.
 
 7. **Create a Browser-Based Playground — Complete**
-   * Use **Pyodide** (Python running in WebAssembly) to build a single-page web editor on GitHub Pages so anyone can write and run `.blk` code directly in their browser with zero installation.
+   * Use **Pyodide** (Python running in WebAssembly) to let anyone write and run `.blk` code in the browser. Published on GitHub Pages as the [Balkh Playground](https://najeeb-karimi.github.io/balkh/).
    * Add a Monaco editor with the extension's syntax grammar, RTL/LTR editing and right-aligned indentation, RTL output, Dari/Pashto diagnostics, examples, source downloads, and a locally saved draft.
    * Support block auto-indent in both the main and basic editors, persistent draft filenames, and tab-filling fullscreen with docked, resizable, and maximizable Results.
    * Run the repository's interpreter and localized standard library in a module Web Worker, accept interactive input in Results while programs run, start each run with fresh variables and input, bound output, and stop infinite loops or pending input by restarting the worker.

@@ -1,6 +1,8 @@
 # 🌐 Balkh Playground
 
-A static, browser-based Balkh editor for GitHub Pages. Python runs in a [module Web Worker](https://pyodide.org/en/stable/usage/webworker.html) through [Pyodide](https://pyodide.org/), using the same `balkh/` package as the command-line interpreter.
+**[Open the Balkh Playground](https://najeeb-karimi.github.io/balkh/)**
+
+The Playground is a browser-based Balkh editor hosted on GitHub Pages. It uses the same `balkh/` package as the command-line interpreter. Pyodide runs Python in a module Web Worker. [Pyodide web worker guide](https://pyodide.org/en/stable/usage/webworker.html)
 
 ## ✨ Features
 
@@ -94,13 +96,11 @@ Run those commands from the repository root. Python is needed for these tests, w
 
 ## 🚢 GitHub Pages Deployment
 
-The repository includes [the Playground workflow](../.github/workflows/playground.yml). To publish:
+Pushes to `main` that affect the Playground or its inputs trigger the deployment workflow. It builds the site, tests the interpreter and browser runtime, and publishes the generated `playground/dist/` artifact to GitHub Pages after the checks pass. Pull requests run the checks without publishing. [Playground workflow](../.github/workflows/playground.yml)
 
-1. In this GitHub repository, open **Settings → Pages → Build and deployment** and select **GitHub Actions** as the source.
-2. Commit and push these changes to `main`. The workflow tests the interpreter, builds the playground, runs real browser tests, and deploys the generated `playground/dist/` artifact.
-3. Open the URL reported by the successful deployment. For this repository it is **https://najeeb-karimi.github.io/balkh/**.
+Check build and deploy status under **Actions → Playground**. A successful deploy job reports the published URL. To deploy manually, select **Run workflow** and choose `main`.
 
-Later pushes affecting the interpreter, examples, playground, shared highlighting assets, or relevant tests rebuild and redeploy the site. Pull requests run checks without deploying. You can also run **Actions → Playground → Run workflow** on `main`. No separate repository, custom server, deployment token, or PyPI release is needed.
+For a first deployment in a new GitHub repository, set **Source** to **GitHub Actions** under **Settings → Pages → Build and deployment**.
 
 ## ⚖️ License
 
