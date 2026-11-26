@@ -13,7 +13,7 @@ Promise.all([
   fs.copyFileSync(require.resolve('vscode-oniguruma/release/onig.wasm'), path.join(dist, 'onig.wasm'));
   fs.copyFileSync(path.join(root, 'src/webview.css'), path.join(dist, 'webview.css'));
   for (const name of ['output.js', 'output.css']) fs.copyFileSync(path.join(root, 'src', name), path.join(dist, name));
-  const licenses = ['monaco-editor/LICENSE', 'vscode-textmate/LICENSE.md', 'vscode-oniguruma/LICENSE.txt', 'vscode-oniguruma/NOTICES.txt', 'dompurify/LICENSE'];
+  const licenses = ['monaco-editor/LICENSE', 'monaco-editor/ThirdPartyNotices.txt', 'vscode-textmate/LICENSE.md', 'vscode-oniguruma/LICENSE.txt', 'vscode-oniguruma/NOTICES.txt', 'dompurify/LICENSE'];
   fs.writeFileSync(path.join(dist, 'THIRD-PARTY-LICENSES.txt'), licenses.map((name) => {
     return `${name}\n${fs.readFileSync(path.join(root, 'node_modules', name), 'utf8')}`;
   }).join('\n\n'));

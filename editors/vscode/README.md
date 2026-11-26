@@ -4,7 +4,15 @@
   <img src="../../assets/balkh-wordmark.png" alt="Balkh wordmark (بلخ)" width="220">
 </p>
 
-Syntax highlighting and basic editing support for Balkh (`.blk`), including Dari, Pashto, and mixed Python programs. Open a `.blk` file and select **Balkh** as its language mode if it is not selected automatically.
+Edit and run Balkh (`.blk`) programs in Dari, Pashto, and mixed Python on desktop VS Code 1.100 or newer.
+
+## 🚀 Quick Start
+
+1. Open or create a `.blk` file to start editing. VS Code selects **Balkh** as the language mode automatically.
+2. For right-aligned editing, right-click the editor tab and choose **Reopen Editor With… → Balkh RTL Editor**.
+3. To run a program, [set up Python and Balkh](#balkh-python-setup), then choose **Run Balkh File**. Results appear in the **Balkh Output** panel.
+
+Highlighting and RTL editing are available as soon as the extension is installed.
 
 ## ✨ Features
 
@@ -37,7 +45,7 @@ Syntax highlighting and basic editing support for Balkh (`.blk`), including Dari
 
 The standard editor uses a declarative TextMate grammar. The optional RTL editor bundles Monaco, TextMate, and Oniguruma locally; it does not download scripts at runtime. Use the `balkh` command in a terminal to run programs.
 
-## 📦 Build and Install Locally
+## 📦 Build and Install from Source
 
 The extension requires desktop VS Code 1.100 or newer. VS Code can install a built VSIX directly. To build it from source, use Python 3.8 or newer, Node.js 22 or newer, and npm. The build expects `python` on your terminal's PATH.
 
@@ -59,14 +67,20 @@ After installation, open one of the repository's `examples/*.blk` files. Colors 
 
 Install the extension in the VS Code profile you use for this project. **Extensions: Install from VSIX…** targets the current window's profile. When reinstalling a rebuilt VSIX with the same version from the terminal, add `--force` to the install command. Run **Developer: Reload Window** to load the updated extension in an open window. The integration-test command below uses an isolated profile and extensions directory.
 
+<span id="balkh-python-setup"></span>
+
 ## ▶️ Run a Balkh Program
 
-Install Balkh into the Python environment that will run your programs. From the repository root:
+Running programs requires Python 3.8 or newer and Balkh installed in the Python environment used by the extension. Clone the repository and install Balkh from the checkout:
 
 ```bash
+git clone https://github.com/najeeb-karimi/balkh.git
+cd balkh
 python -m pip install -e .
 balkh examples/salam.blk
 ```
+
+If you already have the repository, open a terminal at its root and start with the `pip` command.
 
 Open a `.blk` file and choose **Run Balkh File** from the editor's Run menu or **Balkh: Run Balkh File** from the Command Palette. The RTL editor also has a **Run Balkh File** button. The command waits for pending RTL edits, saves the file, and runs the whole program through the regular Balkh CLI. By default, stdout and errors stream as UTF-8 into the **Balkh Output** tab in the bottom panel, alongside the exit status. This dedicated view right-aligns text like the playground, including prompts without a newline; VS Code's standard Output channel does not expose text-alignment controls. English and mixed text keep their natural paragraph direction. Use the **RTL/LTR** button to switch alignment without changing the transcript. The choice is remembered for this workspace.
 

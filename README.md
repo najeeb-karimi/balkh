@@ -147,18 +147,13 @@ Errors go to standard error, and uncaught file execution errors exit with status
 
 ## 🎨 VS Code Support
 
-Build and install the local Balkh Language extension:
+**[Install Balkh Language from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Balkh.balkh-language)**
 
-```bash
-cd editors/vscode
-npm ci --ignore-scripts
-npm run package
-code --install-extension balkh-language-0.5.0.vsix
-```
+You can also search for **Balkh Language** in the Extensions view of desktop VS Code 1.100 or newer.
 
-Open a `.blk` file and choose **Balkh** as its language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. Both editors provide syntax highlighting, comment toggling, and bracket and quote pairing. With `editor.autoIndent` set to `full`, pressing Enter after a single-line block header indents its body in English, Dari, or Pashto.
+Open a `.blk` file to start editing in **Balkh** language mode. For right-aligned editing, right-click the editor tab, choose **Reopen Editor With…**, and select **Balkh RTL Editor**. Both editors provide syntax highlighting, comment toggling, and bracket and quote pairing. With `editor.autoIndent` set to `full`, pressing Enter after a single-line block header indents its body in English, Dari, or Pashto.
 
-Use **Run Balkh File** to save and run the program in the right-aligned **Balkh Output** panel. Answer prompts in native VS Code input boxes. Enter submits, Escape stops, and **End input (EOF)** ends input. Set `balkh.runInTerminal` to `true` for programs that need terminal features. The runner detects workspace `.venv` and `venv` environments, and `balkh.pythonPath` lets you choose another interpreter. See the [extension README](editors/vscode/README.md) for prerequisites, Code Runner compatibility, and development instructions.
+With Python and Balkh installed, use **Run Balkh File** to save and run the program in the right-aligned **Balkh Output** panel. Answer prompts in native VS Code input boxes. Enter submits, Escape stops, and **End input (EOF)** ends input. Set `balkh.runInTerminal` to `true` for programs that need terminal features. The runner detects workspace `.venv` and `venv` environments, and `balkh.pythonPath` lets you choose another interpreter. See the [extension README](editors/vscode/README.md) for setup, Code Runner compatibility, and building the extension from source.
 
 ## 🧪 Running Tests
 
